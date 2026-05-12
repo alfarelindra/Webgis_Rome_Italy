@@ -2173,6 +2173,493 @@
       background: #7c3aed;
       transform: translateY(-2px);
     }
+
+    /* ========== CHATBOT STYLES ========== */
+    #chatbotToggle {
+      position: fixed;
+      bottom: 94px;
+      right: 12px;
+      z-index: 1300;
+      width: 48px;
+      height: 48px;
+      border-radius: 50%;
+      border: none;
+      background: linear-gradient(135deg, #6366f1, #8b5cf6);
+      box-shadow: 0 4px 20px rgba(99, 102, 241, 0.55);
+      font-size: 22px;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: transform 0.2s, box-shadow 0.2s;
+      color: #fff;
+    }
+
+    #chatbotToggle:hover {
+      transform: translateY(-3px) scale(1.07);
+      box-shadow: 0 8px 28px rgba(99, 102, 241, 0.7);
+    }
+
+    #chatbotToggle .chat-badge {
+      position: absolute;
+      top: -4px;
+      right: -4px;
+      width: 16px;
+      height: 16px;
+      background: #ef4444;
+      border-radius: 50%;
+      font-size: 9px;
+      font-weight: 700;
+      color: #fff;
+      display: none;
+      align-items: center;
+      justify-content: center;
+      border: 2px solid #fff;
+    }
+
+    #chatbotToggle .chat-badge.show {
+      display: flex;
+    }
+
+    #chatbotPanel {
+      position: fixed;
+      bottom: 152px;
+      right: 12px;
+      z-index: 1300;
+      width: 340px;
+      max-height: 520px;
+      border-radius: 20px;
+      background: rgba(255, 255, 255, 0.95);
+      backdrop-filter: blur(16px);
+      -webkit-backdrop-filter: blur(16px);
+      border: 1px solid rgba(255, 255, 255, 0.9);
+      box-shadow: 0 20px 60px rgba(0, 0, 0, 0.18), 0 0 0 1px rgba(99, 102, 241, 0.1);
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+      transform-origin: bottom right;
+      transition: transform 0.3s cubic-bezier(0.34, 1.56, 0.64, 1), opacity 0.25s ease;
+    }
+
+    #chatbotPanel.hidden {
+      transform: scale(0.85) translateY(20px);
+      opacity: 0;
+      pointer-events: none;
+    }
+
+    .chat-header {
+      background: linear-gradient(135deg, #4f46e5, #7c3aed);
+      padding: 14px 16px;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      flex-shrink: 0;
+    }
+
+    .chat-header-avatar {
+      width: 36px;
+      height: 36px;
+      border-radius: 50%;
+      background: rgba(255, 255, 255, 0.2);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 18px;
+      flex-shrink: 0;
+    }
+
+    .chat-header-info {
+      flex: 1;
+    }
+
+    .chat-header-name {
+      font-size: 14px;
+      font-weight: 700;
+      color: #fff;
+      letter-spacing: 0.2px;
+    }
+
+    .chat-header-status {
+      font-size: 10px;
+      color: rgba(255, 255, 255, 0.75);
+      display: flex;
+      align-items: center;
+      gap: 4px;
+      margin-top: 1px;
+    }
+
+    .chat-status-dot {
+      width: 6px;
+      height: 6px;
+      border-radius: 50%;
+      background: #4ade80;
+      animation: chatPulse 2s ease-in-out infinite;
+    }
+
+    @keyframes chatPulse {
+
+      0%,
+      100% {
+        opacity: 1;
+        transform: scale(1);
+      }
+
+      50% {
+        opacity: 0.6;
+        transform: scale(1.3);
+      }
+    }
+
+    .chat-header-close {
+      border: none;
+      background: rgba(255, 255, 255, 0.15);
+      color: #fff;
+      border-radius: 8px;
+      width: 28px;
+      height: 28px;
+      font-size: 14px;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: background 0.15s;
+      flex-shrink: 0;
+    }
+
+    .chat-header-close:hover {
+      background: rgba(255, 255, 255, 0.3);
+    }
+
+    .chat-messages {
+      flex: 1;
+      overflow-y: auto;
+      padding: 14px;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+      min-height: 0;
+      max-height: 360px;
+      scroll-behavior: smooth;
+    }
+
+    .chat-messages::-webkit-scrollbar {
+      width: 4px;
+    }
+
+    .chat-messages::-webkit-scrollbar-track {
+      background: transparent;
+    }
+
+    .chat-messages::-webkit-scrollbar-thumb {
+      background: rgba(99, 102, 241, 0.25);
+      border-radius: 99px;
+    }
+
+    .chat-bubble {
+      max-width: 82%;
+      padding: 9px 13px;
+      border-radius: 16px;
+      font-size: 12.5px;
+      line-height: 1.5;
+      word-break: break-word;
+      animation: chatBubbleIn 0.25s cubic-bezier(0.34, 1.56, 0.64, 1);
+    }
+
+    @keyframes chatBubbleIn {
+      from {
+        opacity: 0;
+        transform: scale(0.85) translateY(8px);
+      }
+
+      to {
+        opacity: 1;
+        transform: scale(1) translateY(0);
+      }
+    }
+
+    .chat-bubble.user {
+      align-self: flex-end;
+      background: linear-gradient(135deg, #4f46e5, #7c3aed);
+      color: #fff;
+      border-bottom-right-radius: 4px;
+    }
+
+    .chat-bubble.bot {
+      align-self: flex-start;
+      background: #f1f5f9;
+      color: #1e293b;
+      border-bottom-left-radius: 4px;
+    }
+
+    .chat-bubble.error {
+      align-self: flex-start;
+      background: #fef2f2;
+      color: #dc2626;
+      border: 1px solid #fecaca;
+      border-bottom-left-radius: 4px;
+    }
+
+    .chat-bubble-time {
+      font-size: 9px;
+      opacity: 0.55;
+      margin-top: 4px;
+      text-align: right;
+    }
+
+    .chat-bubble.bot .chat-bubble-time {
+      text-align: left;
+    }
+
+    .chat-typing {
+      align-self: flex-start;
+      background: #f1f5f9;
+      border-radius: 16px;
+      border-bottom-left-radius: 4px;
+      padding: 10px 14px;
+      display: none;
+      gap: 5px;
+      align-items: center;
+    }
+
+    .chat-typing.show {
+      display: flex;
+    }
+
+    .typing-dot {
+      width: 7px;
+      height: 7px;
+      border-radius: 50%;
+      background: #6366f1;
+      animation: typingBounce 1.2s ease-in-out infinite;
+    }
+
+    .typing-dot:nth-child(2) {
+      animation-delay: 0.2s;
+    }
+
+    .typing-dot:nth-child(3) {
+      animation-delay: 0.4s;
+    }
+
+    @keyframes typingBounce {
+
+      0%,
+      80%,
+      100% {
+        transform: translateY(0);
+        opacity: 0.5;
+      }
+
+      40% {
+        transform: translateY(-6px);
+        opacity: 1;
+      }
+    }
+
+    .chat-quick-replies {
+      display: flex;
+      gap: 5px;
+      flex-wrap: wrap;
+      padding: 0 14px 8px;
+      flex-shrink: 0;
+    }
+
+    .chat-quick-btn {
+      border: 1px solid #c7d2fe;
+      background: #eef2ff;
+      color: #4338ca;
+      border-radius: 999px;
+      font-size: 10.5px;
+      font-weight: 600;
+      padding: 4px 10px;
+      cursor: pointer;
+      transition: background 0.15s, transform 0.1s;
+      white-space: nowrap;
+    }
+
+    .chat-quick-btn:hover {
+      background: #e0e7ff;
+      transform: translateY(-1px);
+    }
+
+    .chat-input-row {
+      padding: 10px 12px 14px;
+      display: flex;
+      gap: 8px;
+      align-items: center;
+      flex-shrink: 0;
+      border-top: 1px solid rgba(0, 0, 0, 0.06);
+    }
+
+    #chatInput {
+      flex: 1;
+      border: 1px solid #e2e8f0;
+      border-radius: 12px;
+      padding: 9px 12px;
+      font-size: 12.5px;
+      outline: none;
+      background: #f8fafc;
+      color: #1e293b;
+      resize: none;
+      line-height: 1.4;
+      transition: border-color 0.15s, box-shadow 0.15s;
+      font-family: inherit;
+      max-height: 80px;
+    }
+
+    #chatInput:focus {
+      border-color: #6366f1;
+      box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.15);
+      background: #fff;
+    }
+
+    #chatInput::placeholder {
+      color: #94a3b8;
+    }
+
+    #chatSendBtn {
+      width: 36px;
+      height: 36px;
+      border-radius: 12px;
+      border: none;
+      background: linear-gradient(135deg, #4f46e5, #7c3aed);
+      color: #fff;
+      font-size: 15px;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-shrink: 0;
+      transition: transform 0.15s, opacity 0.15s;
+    }
+
+    #chatSendBtn:hover {
+      transform: scale(1.1);
+    }
+
+    #chatSendBtn:disabled {
+      opacity: 0.5;
+      cursor: not-allowed;
+      transform: none;
+    }
+
+    .chat-api-config {
+      padding: 10px 14px 6px;
+      border-bottom: 1px solid rgba(0, 0, 0, 0.06);
+      flex-shrink: 0;
+    }
+
+    .chat-api-input {
+      width: 100%;
+      border: 1px solid #e2e8f0;
+      border-radius: 10px;
+      padding: 7px 10px;
+      font-size: 11.5px;
+      background: #f8fafc;
+      color: #1e293b;
+      box-sizing: border-box;
+      outline: none;
+      transition: border-color 0.15s;
+    }
+
+    .chat-api-input:focus {
+      border-color: #6366f1;
+      box-shadow: 0 0 0 2px rgba(99, 102, 241, 0.12);
+    }
+
+    .chat-api-label {
+      font-size: 10px;
+      color: #64748b;
+      margin-bottom: 4px;
+      font-weight: 600;
+      letter-spacing: 0.3px;
+    }
+
+    .chat-api-save {
+      margin-top: 6px;
+      width: 100%;
+      border: none;
+      border-radius: 8px;
+      background: linear-gradient(135deg, #4f46e5, #7c3aed);
+      color: #fff;
+      font-size: 11px;
+      font-weight: 700;
+      padding: 7px;
+      cursor: pointer;
+      transition: opacity 0.15s;
+    }
+
+    .chat-api-save:hover {
+      opacity: 0.88;
+    }
+
+    /* Ollama model badge */
+    .chat-model-badge {
+      padding: 6px 14px;
+      font-size: 10.5px;
+      font-weight: 700;
+      color: #4f46e5;
+      background: #eef2ff;
+      border-bottom: 1px solid rgba(99, 102, 241, 0.12);
+      letter-spacing: 0.2px;
+      display: flex;
+      align-items: center;
+      gap: 4px;
+      flex-shrink: 0;
+    }
+
+    /* Dark mode chatbot */
+    body.theme-dark #chatbotPanel {
+      background: rgba(15, 23, 42, 0.95);
+      border-color: rgba(99, 102, 241, 0.2);
+      box-shadow: 0 20px 60px rgba(0, 0, 0, 0.5);
+    }
+
+    body.theme-dark .chat-model-badge {
+      background: #1e1b4b;
+      color: #a5b4fc;
+      border-bottom-color: rgba(99, 102, 241, 0.15);
+    }
+
+    body.theme-dark .chat-bubble.bot {
+      background: #1e293b;
+      color: #e2e8f0;
+    }
+
+    body.theme-dark .chat-bubble.error {
+      background: #450a0a;
+      border-color: #7f1d1d;
+      color: #fca5a5;
+    }
+
+    body.theme-dark .chat-typing {
+      background: #1e293b;
+    }
+
+    body.theme-dark #chatInput {
+      background: #1e293b;
+      color: #e2e8f0;
+      border-color: #334155;
+    }
+
+    body.theme-dark #chatInput:focus {
+      background: #0f172a;
+      border-color: #6366f1;
+    }
+
+    body.theme-dark .chat-input-row {
+      border-top-color: rgba(255, 255, 255, 0.07);
+    }
+
+    body.theme-dark .chat-quick-btn {
+      background: #1e293b;
+      border-color: #334155;
+      color: #a5b4fc;
+    }
+
+    body.theme-dark .chat-quick-btn:hover {
+      background: #2d3748;
+    }
   </style>
 </head>
 
@@ -3836,6 +4323,299 @@
 
       // Show player after splash (3.6s)
       setTimeout(() => showPlayer(true), 3600);
+    })();
+  </script>
+
+  <!-- ========== CHATBOT ========== -->
+  <!-- Floating Toggle Button -->
+  <button id="chatbotToggle" title="Chat dengan AI Asisten Roma">
+    🤖
+    <span class="chat-badge" id="chatBadge">1</span>
+  </button>
+
+  <!-- Chat Panel -->
+  <div id="chatbotPanel" class="hidden">
+    <!-- Header -->
+    <div class="chat-header">
+      <div class="chat-header-avatar">🗺️</div>
+      <div class="chat-header-info">
+        <div class="chat-header-name">Roma AI Assistant</div>
+        <div class="chat-header-status">
+          <span class="chat-status-dot" id="chatStatusDot"></span>
+          <span id="chatStatusText">Online · Siap membantu</span>
+        </div>
+      </div>
+      <button class="chat-header-close" id="chatClose" title="Tutup chat">✕</button>
+    </div>
+
+    <!-- API Key Config removed — Ollama tidak butuh API key! -->
+    <!-- Ollama Model Info Badge -->
+    <div class="chat-model-badge" id="chatModelBadge">
+      🦙 llama3.2 · lokal
+    </div>
+
+    <!-- Messages -->
+    <div class="chat-messages" id="chatMessages">
+      <!-- Welcome message injected by JS -->
+    </div>
+
+    <!-- Typing Indicator -->
+    <div class="chat-typing" id="chatTyping">
+      <span class="typing-dot"></span>
+      <span class="typing-dot"></span>
+      <span class="typing-dot"></span>
+    </div>
+
+    <!-- Quick Reply Chips -->
+    <div class="chat-quick-replies" id="chatQuickReplies">
+      <button class="chat-quick-btn" data-msg="Rekomendasikan restoran pizza terbaik di Roma">🍕 Pizza terbaik</button>
+      <button class="chat-quick-btn" data-msg="Apa saja tempat wisata wajib di Roma?">🏛️ Wisata wajib</button>
+      <button class="chat-quick-btn" data-msg="Bagaimana cara menggunakan fitur routing di peta ini?">🗺️ Cara
+        routing</button>
+      <button class="chat-quick-btn" data-msg="Apa makanan khas Roma yang harus dicoba?">🍝 Kuliner khas</button>
+    </div>
+
+    <!-- Input Row -->
+    <div class="chat-input-row">
+      <textarea id="chatInput" rows="1" placeholder="Tanya tentang Roma, restoran, wisata..."></textarea>
+      <button id="chatSendBtn" title="Kirim">➤</button>
+    </div>
+  </div>
+
+  <script>
+    /* ==================== CHATBOT SCRIPT (Ollama) ==================== */
+    (function () {
+      const BACKEND_URL = 'http://localhost:5000/chat';
+      const HEALTH_URL = 'http://localhost:5000/health';
+      const MAX_HISTORY = 20;
+
+      const toggleBtn = document.getElementById('chatbotToggle');
+      const panel = document.getElementById('chatbotPanel');
+      const closeBtn = document.getElementById('chatClose');
+      const messagesEl = document.getElementById('chatMessages');
+      const inputEl = document.getElementById('chatInput');
+      const sendBtn = document.getElementById('chatSendBtn');
+      const typingEl = document.getElementById('chatTyping');
+      const quickReplies = document.getElementById('chatQuickReplies');
+      const badge = document.getElementById('chatBadge');
+      const statusDot = document.getElementById('chatStatusDot');
+      const statusText = document.getElementById('chatStatusText');
+      const modelBadge = document.getElementById('chatModelBadge');
+
+      let chatOpen = false;
+      let isLoading = false;
+      let conversationHistory = [];
+      let hasUnread = false;
+      let currentModel = 'llama3.2';
+
+      // ---- Status ----
+      function setStatus(state, label) {
+        if (state === 'online') {
+          statusDot.style.background = '#4ade80';
+          statusText.textContent = label || 'Online · Siap membantu';
+        } else if (state === 'typing') {
+          statusDot.style.background = '#fbbf24';
+          statusText.textContent = 'Sedang mengetik...';
+        } else if (state === 'error') {
+          statusDot.style.background = '#f87171';
+          statusText.textContent = label || 'Ollama tidak tersedia';
+        } else {
+          statusDot.style.background = '#94a3b8';
+          statusText.textContent = label || 'Menghubungkan...';
+        }
+      }
+
+      // ---- Health Check Ollama ----
+      async function checkOllamaHealth() {
+        try {
+          // Gunakan AbortController — kompatibel semua browser
+          const controller = new AbortController();
+          const timer = setTimeout(() => controller.abort(), 5000);
+
+          const res = await fetch(HEALTH_URL, { signal: controller.signal });
+          clearTimeout(timer);
+
+          if (res.ok) {
+            const data = await res.json();
+            console.log('[Chatbot] Health check:', data);
+            if (data.ollama_running) {
+              // Pakai model pertama yang tersedia jika default tidak cocok persis
+              const available = data.available_models || [];
+              const defaultModel = data.default_model || 'llama3.2';
+              // Cari match exact atau prefix match (llama3.2 → llama3.2:latest)
+              const matched = available.find(m =>
+                m === defaultModel || m.startsWith(defaultModel + ':')
+              ) || available[0] || defaultModel;
+              currentModel = matched;
+              modelBadge.textContent = `🦙 ${currentModel} · lokal`;
+              setStatus('online', `Online · ${currentModel}`);
+              return true;
+            } else {
+              setStatus('error', 'Ollama tidak berjalan');
+              modelBadge.textContent = '⚠️ Ollama offline';
+              return false;
+            }
+          } else {
+            setStatus('error', 'Server error');
+            modelBadge.textContent = '⚠️ Server error';
+            return false;
+          }
+        } catch (e) {
+          console.warn('[Chatbot] Health check gagal:', e.message);
+          if (e.name === 'AbortError') {
+            setStatus('error', 'Server timeout');
+            modelBadge.textContent = '⚠️ Timeout';
+          } else {
+            setStatus('error', 'Server tidak ditemukan');
+            modelBadge.textContent = '⚠️ Server offline';
+          }
+          return false;
+        }
+      }
+
+      // ---- Toggle Panel ----
+      toggleBtn.addEventListener('click', () => {
+        chatOpen = !chatOpen;
+        panel.classList.toggle('hidden', !chatOpen);
+        if (chatOpen) {
+          badge.classList.remove('show');
+          hasUnread = false;
+          setTimeout(() => inputEl.focus(), 350);
+        }
+      });
+
+      closeBtn.addEventListener('click', () => {
+        chatOpen = false;
+        panel.classList.add('hidden');
+      });
+
+      // ---- Add Message Bubble ----
+      function addMessage(role, content) {
+        const now = new Date().toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' });
+        const bubble = document.createElement('div');
+        bubble.className = `chat-bubble ${role}`;
+
+        // Simple markdown: **bold**, newlines → <br>, `code`
+        const formatted = content
+          .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
+          .replace(/`(.*?)`/g, '<code style="background:rgba(0,0,0,0.08);padding:1px 4px;border-radius:4px;font-size:11px">$1</code>')
+          .replace(/\n/g, '<br>');
+
+        bubble.innerHTML = `
+          <div>${formatted}</div>
+          <div class="chat-bubble-time">${now}</div>
+        `;
+        messagesEl.appendChild(bubble);
+        messagesEl.scrollTop = messagesEl.scrollHeight;
+
+        if (role === 'bot' && !chatOpen) {
+          hasUnread = true;
+          badge.classList.add('show');
+        }
+        return bubble;
+      }
+
+      // ---- Send Message ----
+      async function sendMessage(text) {
+        if (!text.trim() || isLoading) return;
+
+        addMessage('user', text);
+        conversationHistory.push({ role: 'user', content: text });
+
+        if (conversationHistory.length > MAX_HISTORY * 2) {
+          conversationHistory = conversationHistory.slice(-MAX_HISTORY * 2);
+        }
+
+        inputEl.value = '';
+        inputEl.style.height = 'auto';
+        inputEl.disabled = true;
+        sendBtn.disabled = true;
+        isLoading = true;
+
+        typingEl.classList.add('show');
+        messagesEl.scrollTop = messagesEl.scrollHeight;
+        setStatus('typing');
+
+        try {
+          const res = await fetch(BACKEND_URL, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              messages: conversationHistory,
+              model: currentModel
+            })
+          });
+
+          typingEl.classList.remove('show');
+
+          if (!res.ok) {
+            const err = await res.json().catch(() => ({ error: `HTTP ${res.status}` }));
+            addMessage('error', `❌ ${err.error || 'Gagal mendapat respons'}`);
+            setStatus('online');
+          } else {
+            const data = await res.json();
+            const reply = data.reply || 'Maaf, tidak ada respons.';
+            addMessage('bot', reply);
+            conversationHistory.push({ role: 'assistant', content: reply });
+            setStatus('online', `Online · ${data.model || currentModel}`);
+          }
+        } catch (e) {
+          typingEl.classList.remove('show');
+          const isConn = e.message && (e.message.includes('fetch') || e.message.includes('Failed') || e.message.includes('network'));
+          if (isConn) {
+            addMessage('error', '❌ **Server chatbot tidak berjalan.**\n\nJalankan di terminal:\n`python chatbot.py`\n\nPastikan Ollama juga sudah berjalan.');
+          } else {
+            addMessage('error', `❌ Error: ${e.message}`);
+          }
+          setStatus('error', 'Koneksi gagal');
+        } finally {
+          inputEl.disabled = false;
+          sendBtn.disabled = false;
+          isLoading = false;
+          inputEl.focus();
+        }
+      }
+
+      // ---- Input Events ----
+      sendBtn.addEventListener('click', () => sendMessage(inputEl.value));
+
+      inputEl.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter' && !e.shiftKey) {
+          e.preventDefault();
+          sendMessage(inputEl.value);
+        }
+      });
+
+      inputEl.addEventListener('input', () => {
+        inputEl.style.height = 'auto';
+        inputEl.style.height = Math.min(inputEl.scrollHeight, 80) + 'px';
+      });
+
+      quickReplies.querySelectorAll('.chat-quick-btn').forEach(btn => {
+        btn.addEventListener('click', () => sendMessage(btn.getAttribute('data-msg')));
+      });
+
+      // ---- Welcome + Init ----
+      async function init() {
+        setStatus('connecting', 'Menghubungkan ke Ollama...');
+        const ok = await checkOllamaHealth();
+        if (ok) {
+          addMessage('bot', `👋 Halo! Saya **Roma AI Assistant** — didukung oleh **${currentModel}** yang berjalan lokal di komputer Anda.\n\n🍕 Rekomendasi restoran & kuliner\n🏛️ Info tempat wisata Roma\n🗺️ Cara menggunakan fitur peta\n\nAda yang ingin Anda ketahui?`);
+        } else {
+          addMessage('error', '⚠️ **Ollama tidak terdeteksi.**\n\nLangkah setup:\n1. Download **Ollama** di ollama.com\n2. Jalankan: `ollama pull llama3.2`\n3. Jalankan: `python chatbot.py`\n4. Refresh halaman ini');
+        }
+      }
+
+      init();
+
+      // Badge hint setelah splash selesai
+      setTimeout(() => {
+        if (!chatOpen && !hasUnread) {
+          badge.classList.add('show');
+          hasUnread = true;
+        }
+      }, 3500);
+
     })();
   </script>
 </body>
