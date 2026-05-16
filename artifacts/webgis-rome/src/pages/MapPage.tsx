@@ -10,7 +10,7 @@ import LayerControl, { LAYER_CONFIG, SUB_CATEGORIES, type LayerKey } from "@/com
 import LocationPanel from "@/components/LocationPanel";
 import ChatPanel from "@/components/ChatPanel";
 import romeGeoJsonRaw from "@assets/rome_filtered.geojson?raw";
-import { MapPin, ZoomIn, ZoomOut, Locate } from "lucide-react";
+import { MapPin, ZoomIn, ZoomOut, Locate, Download } from "lucide-react";
 
 delete (L.Icon.Default.prototype as unknown as Record<string, unknown>)._getIconUrl;
 L.Icon.Default.mergeOptions({
@@ -267,6 +267,34 @@ export default function MapPage() {
   const handleZoomIn = useCallback(() => mapRef.current?.zoomIn(), []);
   const handleZoomOut = useCallback(() => mapRef.current?.zoomOut(), []);
 
+  const handleExport = useCallback(() => {
+    if (!mapRef.current) return;
+    const bounds = mapRef.current.getBounds();
+
+    const visibleFeatures = markersRef.current
+      .filter(({ feature, category, subKey }) => {
+        const [lng, lat] = feature.geometry.coordinates;
+        if (!bounds.contains([lat, lng])) return false;
+        const name = String(feature.properties.name || "").toLowerCase();
+        const matchesSearch = !searchQuery || name.includes(searchQuery.toLowerCase());
+        const layerOn = layers[category];
+        const subOn = subKey ? subLayers[subKey] !== false : true;
+        return matchesSearch && layerOn && subOn;
+      })
+      .map(({ feature }) => feature);
+
+    if (visibleFeatures.length === 0) return;
+
+    const geojson = { type: "FeatureCollection", features: visibleFeatures };
+    const blob = new Blob([JSON.stringify(geojson, null, 2)], { type: "application/json" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `roma_visible_${visibleFeatures.length}_lokasi.geojson`;
+    a.click();
+    URL.revokeObjectURL(url);
+  }, [searchQuery, layers, subLayers]);
+
   return (
     <div className="relative w-full h-screen overflow-hidden">
       {loading && <LoadingScreen onDone={() => setLoading(false)} />}
@@ -335,23 +363,47 @@ export default function MapPage() {
 
           {/* Stats bar */}
           <div
-            className="absolute bottom-4 left-1/2 -translate-x-1/2 z-[1000] px-4 py-2 rounded-xl flex items-center gap-3"
-            style={{
-              background: "rgba(20,16,12,0.85)",
-              backdropFilter: "blur(12px)",
-              border: "1px solid rgba(255,255,255,0.06)",
-              boxShadow: "0 4px 16px rgba(0,0,0,0.5)",
-            }}
+            className="absolute bottom-4 left-1/2 -translate-x-1/2 z-[1000] flex items-center gap-2"
             data-testid="stats-bar"
           >
-            <MapPin size={12} style={{ color: "#c0623a" }} />
-            <span className="text-xs" style={{ color: "#8a7060" }}>
-              <span style={{ color: "#d4a843" }}>{visibleCount}</span> lokasi ditampilkan
-            </span>
-            <div style={{ width: "1px", height: "12px", background: "rgba(255,255,255,0.08)" }} />
-            <span className="text-xs font-medium tracking-wider uppercase" style={{ color: "#6b5e52" }}>
-              Roma, Italia
-            </span>
+            <div
+              className="flex items-center gap-3 px-4 py-2 rounded-xl"
+              style={{
+                background: "rgba(20,16,12,0.85)",
+                backdropFilter: "blur(12px)",
+                border: "1px solid rgba(255,255,255,0.06)",
+                boxShadow: "0 4px 16px rgba(0,0,0,0.5)",
+              }}
+            >
+              <MapPin size={12} style={{ color: "#c0623a" }} />
+              <span className="text-xs" style={{ color: "#8a7060" }}>
+                <span style={{ color: "#d4a843" }}>{visibleCount}</span> lokasi ditampilkan
+              </span>
+              <div style={{ width: "1px", height: "12px", background: "rgba(255,255,255,0.08)" }} />
+              <span className="text-xs font-medium tracking-wider uppercase" style={{ color: "#6b5e52" }}>
+                Roma, Italia
+              </span>
+            </div>
+
+            {/* Export button */}
+            <button
+              onClick={handleExport}
+              data-testid="button-export"
+              title="Unduh lokasi di area ini sebagai GeoJSON"
+              className="flex items-center gap-2 px-3 py-2 rounded-xl transition-all group"
+              style={{
+                background: "rgba(20,16,12,0.85)",
+                backdropFilter: "blur(12px)",
+                border: "1px solid rgba(192,98,58,0.25)",
+                boxShadow: "0 4px 16px rgba(0,0,0,0.5)",
+                color: "#c0623a",
+              }}
+            >
+              <Download size={13} />
+              <span className="text-xs font-medium" style={{ color: "#c8bfb2" }}>
+                Export
+              </span>
+            </button>
           </div>
         </>
       )}
