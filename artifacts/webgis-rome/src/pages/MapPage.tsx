@@ -3,7 +3,7 @@ import L from "leaflet";
 import "leaflet/dist/leaflet.css";
 import LoadingScreen from "@/components/LoadingScreen";
 import SearchBar from "@/components/SearchBar";
-import LayerControl, { LAYER_CONFIG, type LayerKey } from "@/components/LayerControl";
+import LayerControl, { LAYER_CONFIG, SUB_CATEGORIES, type LayerKey } from "@/components/LayerControl";
 import LocationPanel from "@/components/LocationPanel";
 import ChatPanel from "@/components/ChatPanel";
 import romeGeoJsonRaw from "@assets/rome_filtered.geojson?raw";
@@ -31,7 +31,32 @@ function getCategoryForFeature(props: Record<string, string | number | null>): L
   return "default";
 }
 
-function createSvgMarker(color: string, size = 24): L.DivIcon {
+/** Returns the sub-category key, e.g. "amenity:restaurant" */
+function getSubKeyForFeature(
+  category: LayerKey,
+  props: Record<string, string | number | null>
+): string | null {
+  const subs = SUB_CATEGORIES[category];
+  if (!subs) return null;
+  const value =
+    props.amenity ?? props.tourism ?? props.shop ?? props.highway ?? props.railway;
+  if (!value) return null;
+  const found = subs.find((s) => s.key === String(value));
+  if (found) return `${category}:${found.key}`;
+  return null;
+}
+
+function buildDefaultSubLayers(): Record<string, boolean> {
+  const result: Record<string, boolean> = {};
+  (Object.keys(SUB_CATEGORIES) as LayerKey[]).forEach((cat) => {
+    SUB_CATEGORIES[cat]?.forEach((sub) => {
+      result[`${cat}:${sub.key}`] = true;
+    });
+  });
+  return result;
+}
+
+function createSvgMarker(color: string, size = 22): L.DivIcon {
   const svg = `<svg width="${size}" height="${size}" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
     <circle cx="12" cy="12" r="9" fill="${color}" fill-opacity="0.9" stroke="rgba(255,255,255,0.4)" stroke-width="1.5"/>
     <circle cx="12" cy="12" r="4" fill="rgba(255,255,255,0.6)"/>
@@ -65,8 +90,11 @@ export default function MapPage() {
   const [loading, setLoading] = useState(true);
   const mapRef = useRef<L.Map | null>(null);
   const mapContainerRef = useRef<HTMLDivElement>(null);
-  const markersRef = useRef<Map<string, { marker: L.Marker; feature: GeoFeature; category: LayerKey }>>(new Map());
+  const markersRef = useRef<
+    Map<string, { marker: L.Marker; feature: GeoFeature; category: LayerKey; subKey: string | null }>
+  >(new Map());
   const gpsMarkerRef = useRef<L.Marker | null>(null);
+
   const [searchQuery, setSearchQuery] = useState("");
   const [layers, setLayers] = useState<LayerState>({
     shop: true,
@@ -75,6 +103,8 @@ export default function MapPage() {
     amenity: true,
     default: true,
   });
+  const [subLayers, setSubLayers] = useState<Record<string, boolean>>(buildDefaultSubLayers);
+
   const [selectedFeature, setSelectedFeature] = useState<{
     feature: GeoFeature;
     category: LayerKey;
@@ -94,14 +124,12 @@ export default function MapPage() {
       attributionControl: true,
     });
 
-    L.tileLayer(
-      "https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png",
-      {
-        attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> &copy; <a href="https://carto.com/attributions">CARTO</a>',
-        subdomains: "abcd",
-        maxZoom: 20,
-      }
-    ).addTo(map);
+    L.tileLayer("https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png", {
+      attribution:
+        '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> &copy; <a href="https://carto.com/attributions">CARTO</a>',
+      subdomains: "abcd",
+      maxZoom: 20,
+    }).addTo(map);
 
     mapRef.current = map;
 
@@ -116,24 +144,28 @@ export default function MapPage() {
     if (!mapRef.current) return;
 
     const romeGeoJson = JSON.parse(romeGeoJsonRaw) as { features: GeoFeature[] };
-    const features = romeGeoJson.features.filter(
-      (f) => f.geometry?.type === "Point"
-    );
+    const features = romeGeoJson.features.filter((f) => f.geometry?.type === "Point");
     setTotalCount(features.length);
     setVisibleCount(features.length);
 
     features.forEach((feature, idx) => {
       const [lng, lat] = feature.geometry.coordinates;
       const category = getCategoryForFeature(feature.properties);
+      const subKey = getSubKeyForFeature(category, feature.properties);
       const config = LAYER_CONFIG[category];
       const marker = L.marker([lat, lng], {
         icon: createSvgMarker(config.color),
       });
 
       const name = feature.properties.name || "Lokasi Tidak Bernama";
+      const subLabel =
+        subKey
+          ? SUB_CATEGORIES[category]?.find((s) => s.key === subKey.split(":")[1])?.label ?? config.label
+          : config.label;
+
       const popupHtml = `
         <div style="min-width:180px;padding:4px 2px">
-          <div style="font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:0.1em;color:${config.color};margin-bottom:6px;">${config.label}</div>
+          <div style="font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:0.1em;color:${config.color};margin-bottom:6px;">${subLabel}</div>
           <div style="font-size:14px;font-weight:600;color:#e8ddd0;line-height:1.3;">${name}</div>
           ${feature.properties.opening_hours ? `<div style="font-size:11px;color:#8a7060;margin-top:4px;">${feature.properties.opening_hours}</div>` : ""}
         </div>
@@ -153,58 +185,53 @@ export default function MapPage() {
         marker.addTo(mapRef.current);
       }
 
-      markersRef.current.set(`${idx}`, { marker, feature, category });
+      markersRef.current.set(`${idx}`, { marker, feature, category, subKey });
     });
   }, []);
 
-  // Update markers based on search and layers
+  // Update markers based on search, layers, and sub-layers
   const updateMarkersVisibility = useCallback(() => {
     if (!mapRef.current) return;
     let visible = 0;
-    markersRef.current.forEach(({ marker, feature, category }) => {
+    markersRef.current.forEach(({ marker, feature, category, subKey }) => {
       const name = String(feature.properties.name || "").toLowerCase();
       const matchesSearch = !searchQuery || name.includes(searchQuery.toLowerCase());
       const layerOn = layers[category];
-      if (matchesSearch && layerOn) {
-        if (!mapRef.current!.hasLayer(marker)) {
-          marker.addTo(mapRef.current!);
-        }
+      // Sub-layer check: if a subKey exists and the category has sub-categories, check subLayers state
+      const subOn = subKey ? subLayers[subKey] !== false : true;
+
+      if (matchesSearch && layerOn && subOn) {
+        if (!mapRef.current!.hasLayer(marker)) marker.addTo(mapRef.current!);
         visible++;
       } else {
-        if (mapRef.current!.hasLayer(marker)) {
-          mapRef.current!.removeLayer(marker);
-        }
+        if (mapRef.current!.hasLayer(marker)) mapRef.current!.removeLayer(marker);
       }
     });
     setVisibleCount(visible);
-  }, [searchQuery, layers]);
+  }, [searchQuery, layers, subLayers]);
 
   useEffect(() => {
     updateMarkersVisibility();
   }, [updateMarkersVisibility]);
 
-  const handleSearch = useCallback((q: string) => {
-    setSearchQuery(q);
-  }, []);
+  const handleSearch = useCallback((q: string) => setSearchQuery(q), []);
 
   const handleLayerToggle = useCallback((key: LayerKey) => {
     setLayers((prev) => ({ ...prev, [key]: !prev[key] }));
   }, []);
 
-  const handleGps = useCallback(() => {
-    if (!mapRef.current) return;
-    if (!navigator.geolocation) return;
+  const handleSubToggle = useCallback((subKey: string) => {
+    setSubLayers((prev) => ({ ...prev, [subKey]: prev[subKey] === false ? true : false }));
+  }, []);
 
+  const handleGps = useCallback(() => {
+    if (!mapRef.current || !navigator.geolocation) return;
     setGpsActive(true);
     navigator.geolocation.getCurrentPosition(
       (pos) => {
         const { latitude, longitude } = pos.coords;
-        if (gpsMarkerRef.current) {
-          gpsMarkerRef.current.remove();
-        }
-        const marker = L.marker([latitude, longitude], {
-          icon: createGpsMarker(),
-        });
+        if (gpsMarkerRef.current) gpsMarkerRef.current.remove();
+        const marker = L.marker([latitude, longitude], { icon: createGpsMarker() });
         if (mapRef.current) {
           marker.addTo(mapRef.current);
           mapRef.current.setView([latitude, longitude], 16, { animate: true });
@@ -212,20 +239,13 @@ export default function MapPage() {
         gpsMarkerRef.current = marker;
         setGpsActive(false);
       },
-      () => {
-        setGpsActive(false);
-      },
+      () => setGpsActive(false),
       { enableHighAccuracy: true, timeout: 10000 }
     );
   }, []);
 
-  const handleZoomIn = useCallback(() => {
-    mapRef.current?.zoomIn();
-  }, []);
-
-  const handleZoomOut = useCallback(() => {
-    mapRef.current?.zoomOut();
-  }, []);
+  const handleZoomIn = useCallback(() => mapRef.current?.zoomIn(), []);
+  const handleZoomOut = useCallback(() => mapRef.current?.zoomOut(), []);
 
   return (
     <div className="relative w-full h-screen overflow-hidden">
@@ -237,14 +257,15 @@ export default function MapPage() {
       {!loading && (
         <>
           {/* Search bar */}
-          <SearchBar
-            onSearch={handleSearch}
-            resultCount={visibleCount}
-            totalCount={totalCount}
-          />
+          <SearchBar onSearch={handleSearch} resultCount={visibleCount} totalCount={totalCount} />
 
-          {/* Layer control */}
-          <LayerControl layers={layers} onToggle={handleLayerToggle} />
+          {/* Layer control with sub-filters */}
+          <LayerControl
+            layers={layers}
+            onToggle={handleLayerToggle}
+            subLayers={subLayers}
+            onSubToggle={handleSubToggle}
+          />
 
           {/* Location panel */}
           {selectedFeature && (
@@ -263,36 +284,27 @@ export default function MapPage() {
             className="absolute right-4 top-1/2 -translate-y-1/2 z-[1000] flex flex-col gap-2"
             data-testid="zoom-controls"
           >
-            <button
-              onClick={handleZoomIn}
-              className="w-9 h-9 rounded-xl flex items-center justify-center transition-all"
-              style={{
-                background: "rgba(20, 16, 12, 0.9)",
-                backdropFilter: "blur(12px)",
-                WebkitBackdropFilter: "blur(12px)",
-                border: "1px solid rgba(255,255,255,0.08)",
-                boxShadow: "0 4px 12px rgba(0,0,0,0.5)",
-                color: "#c8bfb2",
-              }}
-              data-testid="button-zoom-in"
-            >
-              <ZoomIn size={16} />
-            </button>
-            <button
-              onClick={handleZoomOut}
-              className="w-9 h-9 rounded-xl flex items-center justify-center transition-all"
-              style={{
-                background: "rgba(20, 16, 12, 0.9)",
-                backdropFilter: "blur(12px)",
-                WebkitBackdropFilter: "blur(12px)",
-                border: "1px solid rgba(255,255,255,0.08)",
-                boxShadow: "0 4px 12px rgba(0,0,0,0.5)",
-                color: "#c8bfb2",
-              }}
-              data-testid="button-zoom-out"
-            >
-              <ZoomOut size={16} />
-            </button>
+            {[
+              { fn: handleZoomIn, icon: <ZoomIn size={16} />, testId: "button-zoom-in" },
+              { fn: handleZoomOut, icon: <ZoomOut size={16} />, testId: "button-zoom-out" },
+            ].map(({ fn, icon, testId }) => (
+              <button
+                key={testId}
+                onClick={fn}
+                className="w-9 h-9 rounded-xl flex items-center justify-center transition-all"
+                style={{
+                  background: "rgba(20, 16, 12, 0.9)",
+                  backdropFilter: "blur(12px)",
+                  WebkitBackdropFilter: "blur(12px)",
+                  border: "1px solid rgba(255,255,255,0.08)",
+                  boxShadow: "0 4px 12px rgba(0,0,0,0.5)",
+                  color: "#c8bfb2",
+                }}
+                data-testid={testId}
+              >
+                {icon}
+              </button>
+            ))}
           </div>
 
           {/* GPS button */}
