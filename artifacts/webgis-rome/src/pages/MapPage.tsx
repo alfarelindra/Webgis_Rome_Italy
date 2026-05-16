@@ -6,7 +6,7 @@ import SearchBar from "@/components/SearchBar";
 import LayerControl, { LAYER_CONFIG, type LayerKey } from "@/components/LayerControl";
 import LocationPanel from "@/components/LocationPanel";
 import ChatPanel from "@/components/ChatPanel";
-import romeGeoJsonRaw from "@assets/italy_rome_1778926773573.geojson?raw";
+import romeGeoJsonRaw from "@assets/rome_filtered.geojson?raw";
 import { MapPin, ZoomIn, ZoomOut, Locate } from "lucide-react";
 
 // Fix Leaflet default icon issue

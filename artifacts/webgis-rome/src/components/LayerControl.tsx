@@ -4,10 +4,10 @@ import { Layers, ChevronUp, ChevronDown } from "lucide-react";
 export type LayerKey = "shop" | "tourism" | "railway" | "amenity" | "default";
 
 export const LAYER_CONFIG: Record<LayerKey, { label: string; color: string; description: string }> = {
-  shop: { label: "Toko & Tiket", color: "#d4a843", description: "Toko, tiket" },
-  tourism: { label: "Wisata", color: "#4caf7d", description: "Tempat wisata, viewpoint" },
-  railway: { label: "Transportasi", color: "#5b9bd5", description: "Kereta, jalan" },
-  amenity: { label: "Fasilitas", color: "#a07ed6", description: "Fasilitas umum" },
+  shop: { label: "Toko & Belanja", color: "#d4a843", description: "Toko, bakeri, kado" },
+  tourism: { label: "Wisata & Hotel", color: "#4caf7d", description: "Museum, hotel, galeri" },
+  railway: { label: "Transportasi", color: "#5b9bd5", description: "Stasiun, metro, tram" },
+  amenity: { label: "Kuliner & Fasilitas", color: "#a07ed6", description: "Restoran, kafe, bar" },
   default: { label: "Lainnya", color: "#8a7060", description: "Titik lain" },
 };
 
