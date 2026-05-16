@@ -24,7 +24,6 @@ interface GeoFeature {
 }
 
 function getCategoryForFeature(props: Record<string, string | number | null>): LayerKey {
-  if (props.shop) return "shop";
   if (props.tourism) return "tourism";
   if (props.railway || props.highway) return "railway";
   if (props.amenity) return "amenity";
@@ -97,7 +96,6 @@ export default function MapPage() {
 
   const [searchQuery, setSearchQuery] = useState("");
   const [layers, setLayers] = useState<LayerState>({
-    shop: true,
     tourism: true,
     railway: true,
     amenity: true,

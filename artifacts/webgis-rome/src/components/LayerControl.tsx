@@ -1,10 +1,9 @@
 import { useState } from "react";
 import { Layers, ChevronUp, ChevronDown, ChevronRight } from "lucide-react";
 
-export type LayerKey = "shop" | "tourism" | "railway" | "amenity" | "default";
+export type LayerKey = "tourism" | "railway" | "amenity" | "default";
 
 export const LAYER_CONFIG: Record<LayerKey, { label: string; color: string; description: string }> = {
-  shop: { label: "Toko & Belanja", color: "#d4a843", description: "Toko, bakeri, kado" },
   tourism: { label: "Wisata & Hotel", color: "#4caf7d", description: "Museum, hotel, galeri" },
   railway: { label: "Transportasi", color: "#5b9bd5", description: "Stasiun, metro, tram" },
   amenity: { label: "Kuliner & Fasilitas", color: "#a07ed6", description: "Restoran, kafe, bar" },
@@ -33,18 +32,6 @@ export const SUB_CATEGORIES: Partial<Record<LayerKey, { key: string; label: stri
     { key: "gallery", label: "Galeri" },
     { key: "hostel", label: "Hostel" },
     { key: "information", label: "Info" },
-  ],
-  shop: [
-    { key: "supermarket", label: "Supermarket" },
-    { key: "convenience", label: "Minimart" },
-    { key: "bakery", label: "Bakeri" },
-    { key: "greengrocer", label: "Sayur & Buah" },
-    { key: "gift", label: "Oleh-oleh" },
-    { key: "jewelry", label: "Perhiasan" },
-    { key: "books", label: "Buku" },
-    { key: "pastry", label: "Kue & Pastry" },
-    { key: "florist", label: "Florist" },
-    { key: "newsagent", label: "Koran & Majalah" },
   ],
   railway: [
     { key: "subway_entrance", label: "Metro / Subway" },

@@ -1,4 +1,4 @@
-import { X, MapPin, Clock, Store, Train, Landmark, HelpCircle } from "lucide-react";
+import { X, MapPin, Clock, Train, Landmark, HelpCircle } from "lucide-react";
 import { LAYER_CONFIG, type LayerKey } from "./LayerControl";
 
 interface LocationProperties {
@@ -23,7 +23,6 @@ interface LocationPanelProps {
 
 function getCategoryIcon(category: LayerKey | null) {
   switch (category) {
-    case "shop": return <Store size={16} />;
     case "tourism": return <Landmark size={16} />;
     case "railway": return <Train size={16} />;
     case "amenity": return <MapPin size={16} />;
