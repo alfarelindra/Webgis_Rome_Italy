@@ -4,16 +4,19 @@ import "leaflet/dist/leaflet.css";
 import "leaflet.markercluster/dist/MarkerCluster.css";
 import "leaflet.markercluster/dist/MarkerCluster.Default.css";
 import "leaflet.markercluster";
+import "leaflet.heat";
 import LoadingScreen from "@/components/LoadingScreen";
 import SearchBar from "@/components/SearchBar";
 import LayerControl, { LAYER_CONFIG, SUB_CATEGORIES, type LayerKey } from "@/components/LayerControl";
 import LocationPanel from "@/components/LocationPanel";
 import BookmarkPanel, { type BookmarkItem } from "@/components/BookmarkPanel";
+import StatisticsPanel, { type CategoryStat } from "@/components/StatisticsPanel";
 import ChatPanel from "@/components/ChatPanel";
 import romeGeoJsonRaw from "@assets/rome_filtered.geojson?raw";
 import {
   MapPin, ZoomIn, ZoomOut, Locate, Download,
   Maximize2, Minimize2, Home, Share2, Star, Sun, Moon, Satellite,
+  Flame, BarChart2,
 } from "lucide-react";
 
 delete (L.Icon.Default.prototype as unknown as Record<string, unknown>)._getIconUrl;
@@ -147,6 +150,8 @@ export default function MapPage() {
   const clustersRef = useRef<Map<LayerKey, L.MarkerClusterGroup>>(new Map());
   const markersRef = useRef<MarkerEntry[]>([]);
   const gpsMarkerRef = useRef<L.Marker | null>(null);
+  const heatLayerRef = useRef<L.HeatLayer | null>(null);
+  const heatPointsRef = useRef<[number, number, number][]>([]);
 
   const [searchQuery, setSearchQuery] = useState("");
   const [layers, setLayers] = useState<Record<LayerKey, boolean>>({
@@ -167,6 +172,10 @@ export default function MapPage() {
   });
   const [coords, setCoords] = useState<{ lat: number; lng: number } | null>(null);
   const [shareToast, setShareToast] = useState(false);
+  const [showHeatmap, setShowHeatmap] = useState(false);
+  const [showStats, setShowStats] = useState(false);
+  const [statsData, setStatsData] = useState<CategoryStat[]>([]);
+  const [heatRevision, setHeatRevision] = useState(0);
 
   // Init map
   useEffect(() => {
@@ -240,18 +249,52 @@ export default function MapPage() {
     const map = mapRef.current;
     clustersRef.current.forEach((g) => g.clearLayers());
     let visible = 0;
+    const heatPts: [number, number, number][] = [];
+    const catSubCounts: Partial<Record<LayerKey, Record<string, number>>> = {};
+
     markersRef.current.forEach(({ marker, feature, category, subKey }) => {
       const name = String(feature.properties.name || "").toLowerCase();
       const ok = (!searchQuery || name.includes(searchQuery.toLowerCase()))
         && layers[category]
         && (subKey ? subLayers[subKey] !== false : true);
-      if (ok) { clustersRef.current.get(category)?.addLayer(marker); visible++; }
+      if (ok) {
+        clustersRef.current.get(category)?.addLayer(marker);
+        visible++;
+        // Heat intensity by category
+        const intensity = category === "tourism" ? 0.9 : category === "amenity" ? 0.7 : category === "railway" ? 0.5 : 0.4;
+        const [lng, lat] = feature.geometry.coordinates;
+        heatPts.push([lat, lng, intensity]);
+        // Sub-category counts for stats
+        const sk = subKey?.split(":")[1] ?? "__other__";
+        if (!catSubCounts[category]) catSubCounts[category] = {};
+        catSubCounts[category]![sk] = (catSubCounts[category]![sk] ?? 0) + 1;
+      }
     });
+
     clustersRef.current.forEach((g, key) => {
       if (layers[key]) { if (!map.hasLayer(g)) g.addTo(map); }
       else { if (map.hasLayer(g)) map.removeLayer(g); }
     });
     setVisibleCount(visible);
+
+    // Compute stats
+    const newStats: CategoryStat[] = (Object.keys(LAYER_CONFIG) as LayerKey[]).map((key) => {
+      const subs = catSubCounts[key] ?? {};
+      const count = Object.values(subs).reduce((a, b) => a + b, 0);
+      const percentage = visible > 0 ? (count / visible) * 100 : 0;
+      const topSubs = Object.entries(subs)
+        .map(([sk, cnt]) => {
+          const subDef = SUB_CATEGORIES[key]?.find((s) => s.key === sk);
+          return { label: subDef?.label ?? sk, count: cnt, pct: count > 0 ? (cnt / count) * 100 : 0 };
+        })
+        .sort((a, b) => b.count - a.count);
+      return { key, count, percentage, topSubs };
+    });
+    setStatsData(newStats);
+
+    // Update heatmap data
+    heatPointsRef.current = heatPts;
+    setHeatRevision((r) => r + 1);
   }, [searchQuery, layers, subLayers]);
 
   useEffect(() => { updateVisibility(); }, [updateVisibility]);
@@ -260,6 +303,31 @@ export default function MapPage() {
   useEffect(() => {
     localStorage.setItem(BOOKMARKS_KEY, JSON.stringify(bookmarks));
   }, [bookmarks]);
+
+  // Heatmap management
+  useEffect(() => {
+    if (!mapRef.current) return;
+    if (showHeatmap) {
+      const pts = heatPointsRef.current;
+      if (!heatLayerRef.current) {
+        heatLayerRef.current = L.heatLayer(pts, {
+          radius: 28,
+          blur: 22,
+          maxZoom: 17,
+          max: 1.0,
+          minOpacity: 0.35,
+          gradient: { 0.2: "#3b4fa8", 0.4: "#5b8fa8", 0.6: "#7c9e6a", 0.75: "#d4a843", 0.9: "#c0623a", 1.0: "#fff5e0" },
+        }).addTo(mapRef.current);
+      } else {
+        heatLayerRef.current.setLatLngs(pts);
+      }
+    } else {
+      if (heatLayerRef.current && mapRef.current.hasLayer(heatLayerRef.current)) {
+        mapRef.current.removeLayer(heatLayerRef.current);
+        heatLayerRef.current = null;
+      }
+    }
+  }, [showHeatmap, heatRevision]);
 
   // --- Handlers ---
   const handleSearch = useCallback((q: string) => setSearchQuery(q), []);
@@ -403,8 +471,15 @@ export default function MapPage() {
 
           <LayerControl layers={layers} onToggle={handleLayerToggle} subLayers={subLayers} onSubToggle={handleSubToggle} />
 
-          {/* Bookmark panel */}
-          {showBookmarks && (
+          {/* Floating left panels — only one shown at a time */}
+          {showStats && (
+            <StatisticsPanel
+              stats={statsData}
+              total={visibleCount}
+              onClose={() => setShowStats(false)}
+            />
+          )}
+          {showBookmarks && !showStats && (
             <BookmarkPanel
               bookmarks={bookmarks}
               onFlyTo={(lat, lng) => { mapRef.current?.flyTo([lat, lng], 17, { animate: true }); setShowBookmarks(false); }}
@@ -425,7 +500,7 @@ export default function MapPage() {
 
           <ChatPanel />
 
-          {/* Right toolbar: Zoom + Fullscreen + Home + Share */}
+          {/* Right toolbar: Zoom + Fullscreen + Home + Share + Heatmap */}
           <div className="absolute right-4 top-1/2 -translate-y-1/2 z-[1000] flex flex-col gap-2">
             {([
               { fn: handleZoomIn, icon: <ZoomIn size={15} />, id: "button-zoom-in", title: "Zoom In" },
@@ -441,6 +516,22 @@ export default function MapPage() {
                 {icon}
               </button>
             ))}
+            {/* Heatmap toggle — highlighted when active */}
+            <button
+              onClick={() => setShowHeatmap((v) => !v)}
+              title="Toggle Heatmap Kepadatan"
+              data-testid="button-heatmap"
+              className="w-9 h-9 rounded-xl flex items-center justify-center transition-all"
+              style={{
+                background: showHeatmap ? "linear-gradient(135deg,#c0623a88,#d4a84388)" : "rgba(20,16,12,0.9)",
+                backdropFilter: "blur(12px)",
+                border: showHeatmap ? "1px solid rgba(192,98,58,0.55)" : "1px solid rgba(255,255,255,0.08)",
+                boxShadow: showHeatmap ? "0 4px 14px rgba(192,98,58,0.35)" : "0 4px 12px rgba(0,0,0,0.5)",
+                color: showHeatmap ? "#fff5e0" : "#c8bfb2",
+              }}
+            >
+              <Flame size={15} />
+            </button>
           </div>
 
           {/* GPS */}
@@ -490,18 +581,33 @@ export default function MapPage() {
             </button>
 
             {/* Bookmarks */}
-            <button onClick={() => setShowBookmarks(!showBookmarks)} data-testid="button-bookmarks"
+            <button onClick={() => { setShowBookmarks(!showBookmarks); setShowStats(false); }} data-testid="button-bookmarks"
               title="Favorit tersimpan"
               className="flex items-center gap-1.5 px-3 py-2 rounded-xl transition-all"
               style={{
-                background: showBookmarks ? "rgba(212,168,67,0.12)" : "rgba(20,16,12,0.85)",
+                background: showBookmarks && !showStats ? "rgba(212,168,67,0.12)" : "rgba(20,16,12,0.85)",
                 backdropFilter: "blur(12px)",
-                border: `1px solid ${showBookmarks ? "rgba(212,168,67,0.35)" : "rgba(255,255,255,0.06)"}`,
+                border: `1px solid ${showBookmarks && !showStats ? "rgba(212,168,67,0.35)" : "rgba(255,255,255,0.06)"}`,
                 boxShadow: "0 4px 16px rgba(0,0,0,0.5)",
-                color: showBookmarks ? "#d4a843" : "#c8bfb2",
+                color: showBookmarks && !showStats ? "#d4a843" : "#c8bfb2",
               }}>
-              <Star size={13} fill={showBookmarks ? "#d4a843" : "none"} style={{ color: showBookmarks ? "#d4a843" : "#c8bfb2" }} />
+              <Star size={13} fill={showBookmarks && !showStats ? "#d4a843" : "none"} style={{ color: showBookmarks && !showStats ? "#d4a843" : "#c8bfb2" }} />
               <span className="text-xs font-medium">{bookmarks.length > 0 ? bookmarks.length : "Favorit"}</span>
+            </button>
+
+            {/* Statistics */}
+            <button onClick={() => { setShowStats((v) => !v); setShowBookmarks(false); }} data-testid="button-stats"
+              title="Statistik popularitas lokasi"
+              className="flex items-center gap-1.5 px-3 py-2 rounded-xl transition-all"
+              style={{
+                background: showStats ? "rgba(192,98,58,0.12)" : "rgba(20,16,12,0.85)",
+                backdropFilter: "blur(12px)",
+                border: `1px solid ${showStats ? "rgba(192,98,58,0.35)" : "rgba(255,255,255,0.06)"}`,
+                boxShadow: "0 4px 16px rgba(0,0,0,0.5)",
+                color: showStats ? "#c0623a" : "#c8bfb2",
+              }}>
+              <BarChart2 size={13} style={{ color: showStats ? "#c0623a" : "#c8bfb2" }} />
+              <span className="text-xs font-medium">Statistik</span>
             </button>
           </div>
 
