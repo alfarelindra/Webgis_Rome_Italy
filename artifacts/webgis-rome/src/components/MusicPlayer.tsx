@@ -1,19 +1,81 @@
 import { useState, useRef, useEffect, useCallback } from "react";
-import { Music, Volume2, VolumeX, Volume1, Play, Pause, ChevronUp, ChevronDown } from "lucide-react";
+import { Music, Volume2, VolumeX, Volume1, Play, Pause, ChevronUp, ChevronDown, GripVertical } from "lucide-react";
 
 const BASE_PATH = import.meta.env.BASE_URL;
 const MUSIC_SRC = `${BASE_PATH}background.mp3`.replace(/\/\//g, "/");
+const STORAGE_KEY = "webgis-rome-music-position";
+const PLAYER_W = 196;
+const PLAYER_H_COLLAPSED = 44;
+
+type Position = { x: number; y: number };
+
+function loadPosition(): Position | null {
+  try {
+    const raw = localStorage.getItem(STORAGE_KEY);
+    if (!raw) return null;
+    const p = JSON.parse(raw) as Position;
+    if (typeof p.x !== "number" || typeof p.y !== "number") return null;
+    // Posisi lama (kiri, menutupi panel) — pakai default kanan bawah
+    if (p.x < window.innerWidth * 0.45) {
+      localStorage.removeItem(STORAGE_KEY);
+      return null;
+    }
+    return p;
+  } catch {
+    /* ignore */
+  }
+  return null;
+}
+
+function defaultPosition(): Position {
+  const margin = 16;
+  const bottomClear = 88;
+  return {
+    x: Math.max(margin, window.innerWidth - PLAYER_W - margin),
+    y: Math.max(margin, window.innerHeight - PLAYER_H_COLLAPSED - bottomClear),
+  };
+}
+
+function clampPosition(x: number, y: number, expanded: boolean): Position {
+  const h = expanded ? 140 : PLAYER_H_COLLAPSED;
+  const margin = 8;
+  return {
+    x: Math.min(Math.max(margin, x), window.innerWidth - PLAYER_W - margin),
+    y: Math.min(Math.max(margin, y), window.innerHeight - h - margin),
+  };
+}
 
 export default function MusicPlayer() {
   const audioRef = useRef<HTMLAudioElement | null>(null);
+  const dragRef = useRef<{ startX: number; startY: number; origX: number; origY: number } | null>(null);
   const [playing, setPlaying] = useState(false);
   const [volume, setVolume] = useState(0.35);
   const [expanded, setExpanded] = useState(false);
   const [muted, setMuted] = useState(false);
   const [loaded, setLoaded] = useState(false);
+  const [position, setPosition] = useState<Position | null>(() => loadPosition());
+  const [dragging, setDragging] = useState(false);
   const prevVolRef = useRef(0.35);
 
-  // Init audio element
+  const resolvedPos = position ?? defaultPosition();
+
+  useEffect(() => {
+    const onResize = () => {
+      setPosition((p) => {
+        const base = p ?? defaultPosition();
+        return clampPosition(base.x, base.y, expanded);
+      });
+    };
+    window.addEventListener("resize", onResize);
+    return () => window.removeEventListener("resize", onResize);
+  }, [expanded]);
+
+  useEffect(() => {
+    if (position) {
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(position));
+    }
+  }, [position]);
+
   useEffect(() => {
     const audio = new Audio(MUSIC_SRC);
     audio.loop = true;
@@ -30,7 +92,6 @@ export default function MusicPlayer() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // Sync volume to audio
   useEffect(() => {
     if (audioRef.current) {
       audioRef.current.volume = muted ? 0 : volume;
@@ -61,6 +122,28 @@ export default function MusicPlayer() {
     if (muted && v > 0) setMuted(false);
   };
 
+  const onPointerDownDrag = (e: React.PointerEvent) => {
+    if ((e.target as HTMLElement).closest("button, input")) return;
+    e.preventDefault();
+    const start = position ?? defaultPosition();
+    dragRef.current = { startX: e.clientX, startY: e.clientY, origX: start.x, origY: start.y };
+    setDragging(true);
+    (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId);
+  };
+
+  const onPointerMoveDrag = (e: React.PointerEvent) => {
+    if (!dragRef.current) return;
+    const dx = e.clientX - dragRef.current.startX;
+    const dy = e.clientY - dragRef.current.startY;
+    setPosition(clampPosition(dragRef.current.origX + dx, dragRef.current.origY + dy, expanded));
+  };
+
+  const onPointerUpDrag = (e: React.PointerEvent) => {
+    dragRef.current = null;
+    setDragging(false);
+    (e.currentTarget as HTMLElement).releasePointerCapture(e.pointerId);
+  };
+
   const volumeIcon = muted || volume === 0
     ? <VolumeX size={13} />
     : volume < 0.4
@@ -71,8 +154,13 @@ export default function MusicPlayer() {
 
   return (
     <div
-      className="absolute bottom-20 z-[1000]"
-      style={{ width: "196px", left: "248px" }}
+      className="absolute z-[1000] select-none"
+      style={{
+        left: resolvedPos.x,
+        top: resolvedPos.y,
+        width: PLAYER_W,
+        cursor: dragging ? "grabbing" : undefined,
+      }}
       data-testid="music-player"
     >
       <div
@@ -89,9 +177,18 @@ export default function MusicPlayer() {
             : "0 8px 24px rgba(0,0,0,0.5)",
         }}
       >
-        {/* Main bar */}
-        <div className="flex items-center gap-2 px-3 py-2">
-          {/* Music icon / play indicator */}
+        <div
+          className="flex items-center gap-2 px-2 py-2 touch-none"
+          onPointerDown={onPointerDownDrag}
+          onPointerMove={onPointerMoveDrag}
+          onPointerUp={onPointerUpDrag}
+          onPointerCancel={onPointerUpDrag}
+          title="Seret untuk memindahkan"
+        >
+          <div className="flex-shrink-0 p-0.5 rounded cursor-grab active:cursor-grabbing" style={{ color: "#4a3e36" }} aria-hidden>
+            <GripVertical size={14} />
+          </div>
+
           <div
             className="w-6 h-6 rounded-lg flex items-center justify-center flex-shrink-0"
             style={{
@@ -101,7 +198,6 @@ export default function MusicPlayer() {
             }}
           >
             {playing ? (
-              // Animated bars when playing
               <div className="flex items-end gap-0.5 h-3">
                 {[0, 1, 2].map((i) => (
                   <div
@@ -120,7 +216,6 @@ export default function MusicPlayer() {
             )}
           </div>
 
-          {/* Title */}
           <div className="flex-1 min-w-0">
             <div className="text-[10px] font-semibold truncate" style={{ color: playing ? "#d4a843" : "#8a7060" }}>
               Taste of Italy
@@ -130,7 +225,6 @@ export default function MusicPlayer() {
             </div>
           </div>
 
-          {/* Expand toggle */}
           <button
             onClick={() => setExpanded((v) => !v)}
             className="p-0.5 rounded transition-colors"
@@ -141,13 +235,8 @@ export default function MusicPlayer() {
           </button>
         </div>
 
-        {/* Expanded controls */}
         {expanded && (
-          <div
-            className="px-3 pb-2.5 flex flex-col gap-2"
-            style={{ borderTop: "1px solid rgba(255,255,255,0.05)" }}
-          >
-            {/* Play / Pause */}
+          <div className="px-3 pb-2.5 flex flex-col gap-2" style={{ borderTop: "1px solid rgba(255,255,255,0.05)" }}>
             <div className="flex items-center justify-between pt-2">
               <button
                 onClick={togglePlay}
@@ -167,7 +256,6 @@ export default function MusicPlayer() {
                 {playing ? "Pause" : "Play"}
               </button>
 
-              {/* Mute toggle */}
               <button
                 onClick={toggleMute}
                 className="w-7 h-7 rounded-lg flex items-center justify-center transition-colors"
@@ -183,7 +271,6 @@ export default function MusicPlayer() {
               </button>
             </div>
 
-            {/* Volume slider */}
             <div className="flex items-center gap-2">
               <VolumeX size={10} style={{ color: "#3a3028", flexShrink: 0 }} />
               <div className="relative flex-1 h-1.5 rounded-full" style={{ background: "rgba(255,255,255,0.08)" }}>
@@ -210,7 +297,6 @@ export default function MusicPlayer() {
               <Volume2 size={10} style={{ color: "#3a3028", flexShrink: 0 }} />
             </div>
 
-            {/* Volume percentage */}
             <div className="text-center text-[9px]" style={{ color: "#3a3028" }}>
               {muted ? "🔇 Muted" : `🔊 ${volPct}%`}
             </div>
@@ -218,7 +304,6 @@ export default function MusicPlayer() {
         )}
       </div>
 
-      {/* CSS for animated bars */}
       <style>{`
         @keyframes music-bar {
           from { transform: scaleY(0.2); }

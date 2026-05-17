@@ -1,6 +1,10 @@
-import { X, MapPin, Clock, Train, Landmark, HelpCircle, Star, Info, Lightbulb } from "lucide-react";
+import { X, MapPin, Clock, Train, Landmark, HelpCircle, Star, Info, Lightbulb, BedDouble } from "lucide-react";
 import { LAYER_CONFIG, type LayerKey } from "./LayerControl";
 import { getPlaceDescription } from "@/lib/placeDescriptions";
+import { findListingByOsmName } from "@/lib/hotelListings";
+import { findAttractionByOsmName } from "@/lib/attractionListings";
+import { getPlaceImage, PLACE_IMAGE_FALLBACK } from "@/lib/placeImages";
+import HotelImage from "@/components/HotelImage";
 
 interface LocationProperties {
   name?: string | null;
@@ -29,6 +33,8 @@ interface LocationPanelProps {
   onClose: () => void;
   isBookmarked?: boolean;
   onBookmark?: () => void;
+  onOpenHotelDetail?: (listingId: string) => void;
+  onOpenAttractionDetail?: (listingId: string) => void;
 }
 
 function getCategoryIcon(category: LayerKey | null) {
@@ -81,15 +87,29 @@ const VALUE_TRANSLATE: Record<string, string> = {
   grass: "Rumput",
 };
 
-export default function LocationPanel({ feature, category, onClose, isBookmarked, onBookmark }: LocationPanelProps) {
+const STAY_TYPES = new Set(["hotel", "hostel", "guest_house", "apartment", "motel", "chalet"]);
+const ATTRACTION_TYPES = new Set(["museum", "attraction", "viewpoint", "gallery", "theme_park", "artwork", "information"]);
+
+export default function LocationPanel({ feature, category, onClose, isBookmarked, onBookmark, onOpenHotelDetail, onOpenAttractionDetail }: LocationPanelProps) {
   if (!feature) return null;
 
   const props = feature.properties;
   const name = props.name || "Lokasi Tidak Bernama";
   const config = category ? LAYER_CONFIG[category] : LAYER_CONFIG.default;
+  const hotelListing = findListingByOsmName(props.name);
+  const attractionListing = findAttractionByOsmName(props.name);
+  const isStay =
+    (props.tourism && STAY_TYPES.has(String(props.tourism))) ||
+    props.amenity === "hotel";
+  const isAttraction =
+    category === "tourism" &&
+    props.tourism &&
+    ATTRACTION_TYPES.has(String(props.tourism)) &&
+    !STAY_TYPES.has(String(props.tourism));
 
-  // Get auto-generated description
+  // Get auto-generated description & image
   const desc = getPlaceDescription(props as Record<string, string | number | null>);
+  const placeImage = getPlaceImage(props as Record<string, string | number | null>, category, name);
 
   // Filter details — skip name and skipped keys, show only non-null values
   const details = Object.entries(props).filter(
@@ -166,6 +186,36 @@ export default function LocationPanel({ feature, category, onClose, isBookmarked
 
         {/* Scrollable content */}
         <div className="flex-1 overflow-y-auto">
+          {placeImage && (
+            <div className="px-4 pt-3" data-testid="place-image-hero">
+              <div
+                className="relative rounded-xl overflow-hidden aspect-[16/10]"
+                style={{ border: `1px solid ${config.color}33` }}
+              >
+                <HotelImage
+                  src={placeImage.url}
+                  alt={placeImage.alt}
+                  fallback={PLACE_IMAGE_FALLBACK}
+                  className="w-full h-full object-cover"
+                />
+                <div
+                  className="absolute inset-0 pointer-events-none"
+                  style={{
+                    background: "linear-gradient(to top, rgba(14,11,8,0.75) 0%, transparent 55%)",
+                  }}
+                />
+                {(placeImage.source === "listing" || placeImage.source === "dataset") && (
+                  <span
+                    className="absolute bottom-2 left-2 text-[9px] font-semibold uppercase tracking-wider px-2 py-0.5 rounded-md"
+                    style={{ background: "rgba(0,0,0,0.55)", color: "#c8bfb2" }}
+                  >
+                    {placeImage.source === "listing" ? "Foto asli lokasi" : "Foto tempat"}
+                  </span>
+                )}
+              </div>
+            </div>
+          )}
+
           {/* ── Description Card ── */}
           <div className="px-4 pt-3 pb-2">
             <div
@@ -196,6 +246,47 @@ export default function LocationPanel({ feature, category, onClose, isBookmarked
               </div>
             </div>
           </div>
+
+          {isAttraction && attractionListing && onOpenAttractionDetail && (
+            <div className="px-4 pb-2">
+              <button
+                type="button"
+                onClick={() => onOpenAttractionDetail(attractionListing.id)}
+                className="w-full flex items-center justify-center gap-2 py-2.5 rounded-xl text-[12px] font-semibold transition-all hover:opacity-90"
+                style={{
+                  background: "linear-gradient(135deg, rgba(76,175,125,0.22), rgba(46,125,82,0.12))",
+                  border: "1px solid rgba(76,175,125,0.4)",
+                  color: "#9fdfb8",
+                }}
+                data-testid="button-open-attraction-detail"
+              >
+                <Landmark size={14} />
+                Lihat detail destinasi
+                <span className="text-[10px] font-normal opacity-80">· {attractionListing.entryFee}</span>
+              </button>
+            </div>
+          )}
+
+          {/* ── Airbnb-style stay detail ── */}
+          {isStay && hotelListing && onOpenHotelDetail && (
+            <div className="px-4 pb-2">
+              <button
+                type="button"
+                onClick={() => onOpenHotelDetail(hotelListing.id)}
+                className="w-full flex items-center justify-center gap-2 py-2.5 rounded-xl text-[12px] font-semibold transition-all hover:opacity-90"
+                style={{
+                  background: "linear-gradient(135deg, rgba(76,175,125,0.2), rgba(192,98,58,0.15))",
+                  border: "1px solid rgba(76,175,125,0.35)",
+                  color: "#9fdfb8",
+                }}
+                data-testid="button-open-hotel-detail"
+              >
+                <BedDouble size={14} />
+                Lihat detail penginapan
+                <span className="text-[10px] font-normal opacity-80">· €{hotelListing.pricePerNight}/malam</span>
+              </button>
+            </div>
+          )}
 
           {/* ── Tips Card (if available) ── */}
           {desc.tips && (

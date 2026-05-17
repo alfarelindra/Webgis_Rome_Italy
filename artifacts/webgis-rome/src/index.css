@@ -166,48 +166,111 @@
   }
 }
 
-/* Loading screen animation */
-@keyframes rome-pulse {
-  0%, 100% { opacity: 1; }
-  50% { opacity: 0.5; }
+/* ============================================
+   SPARTAN LOADING SCREEN ANIMATIONS
+   ============================================ */
+
+/* Helmet floating bob */
+@keyframes spartan-helmet-float {
+  0%, 100% { transform: translateY(0px) scale(1); }
+  50%       { transform: translateY(-10px) scale(1.03); }
 }
 
-@keyframes rome-spin {
-  from { transform: rotate(0deg); }
-  to { transform: rotate(360deg); }
+/* Main content fade-in from below */
+@keyframes spartan-main-enter {
+  from { opacity: 0; transform: translateY(30px); }
+  to   { opacity: 1; transform: translateY(0); }
 }
 
-@keyframes fade-in-up {
-  from { opacity: 0; transform: translateY(16px); }
-  to { opacity: 1; transform: translateY(0); }
+/* Phrase cross-fade */
+@keyframes spartan-phrase-in {
+  0%   { opacity: 0; transform: translateY(6px) scale(0.97); }
+  30%  { opacity: 1; transform: translateY(0) scale(1); }
+  70%  { opacity: 1; transform: translateY(0) scale(1); }
+  100% { opacity: 0; transform: translateY(-6px) scale(0.97); }
 }
 
-@keyframes fade-out {
-  from { opacity: 1; }
-  to { opacity: 0; }
+/* Left column enters from left */
+@keyframes spartan-col-left {
+  from { opacity: 0; transform: translateX(-60px); }
+  to   { opacity: 1; transform: translateX(0); }
 }
 
-@keyframes slide-in-right {
-  from { transform: translateX(100%); }
-  to { transform: translateX(0); }
+/* Right column enters from right */
+@keyframes spartan-col-right {
+  from { opacity: 0; transform: translateX(60px); }
+  to   { opacity: 1; transform: translateX(0); }
 }
 
-@keyframes slide-in-up {
-  from { transform: translateY(100%); }
-  to { transform: translateY(0); }
+/* Full screen entrance */
+@keyframes spartan-screen-in {
+  from { opacity: 0; }
+  to   { opacity: 1; }
 }
 
+/* Dramatic exit — scale down + fade */
+@keyframes spartan-screen-exit {
+  0%   { opacity: 1; transform: scale(1); filter: brightness(1); }
+  40%  { opacity: 1; transform: scale(1.04); filter: brightness(1.4); }
+  100% { opacity: 0; transform: scale(0.92); filter: brightness(0); }
+}
+
+/* Generic load bar shimmer */
+@keyframes spartan-shimmer {
+  from { background-position: -400px 0; }
+  to   { background-position: 400px 0; }
+}
+
+/* GPS pulsing rings */
 @keyframes gps-pulse {
-  0% { box-shadow: 0 0 0 0 rgba(192, 98, 58, 0.7); }
-  70% { box-shadow: 0 0 0 12px rgba(192, 98, 58, 0); }
+  0%   { box-shadow: 0 0 0 0 rgba(192, 98, 58, 0.7); }
+  70%  { box-shadow: 0 0 0 12px rgba(192, 98, 58, 0); }
   100% { box-shadow: 0 0 0 0 rgba(192, 98, 58, 0); }
 }
 
-.loading-screen-enter { animation: fade-in-up 0.6s ease forwards; }
-.loading-screen-exit { animation: fade-out 0.5s ease forwards; }
+/* Panel transitions */
+@keyframes fade-in-up {
+  from { opacity: 0; transform: translateY(16px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+@keyframes fade-out {
+  from { opacity: 1; }
+  to   { opacity: 0; }
+}
+@keyframes slide-in-left {
+  from { opacity: 0; transform: translateX(-24px); }
+  to   { opacity: 1; transform: translateX(0); }
+}
+@keyframes slide-in-right {
+  from { transform: translateX(100%); }
+  to   { transform: translateX(0); }
+}
+@keyframes slide-in-up {
+  from { transform: translateY(100%); }
+  to   { transform: translateY(0); }
+}
+@keyframes rome-pulse {
+  0%, 100% { opacity: 1; }
+  50%       { opacity: 0.5; }
+}
+
+/* ---- Utility classes ---- */
+.loading-screen-enter  { animation: fade-in-up 0.6s ease forwards; }
+.loading-screen-exit   { animation: fade-out 0.5s ease forwards; }
+
+.loading-spartan-enter { animation: spartan-screen-in 0.7s ease forwards; }
+.loading-spartan-exit  { animation: spartan-screen-exit 0.9s cubic-bezier(0.4, 0, 0.2, 1) forwards; }
+
+.spartan-helmet-float  { animation: spartan-helmet-float 3.2s ease-in-out infinite; }
+.spartan-main-enter    { animation: spartan-main-enter 0.8s cubic-bezier(0.22, 1, 0.36, 1) 0.2s both; }
+.spartan-phrase        { animation: spartan-phrase-in 1.2s ease forwards; }
+.spartan-column-left   { animation: spartan-col-left  0.9s cubic-bezier(0.22, 1, 0.36, 1) 0.1s both; }
+.spartan-column-right  { animation: spartan-col-right 0.9s cubic-bezier(0.22, 1, 0.36, 1) 0.1s both; }
+
+.slide-in-left  { animation: slide-in-left  0.35s cubic-bezier(0.4, 0, 0.2, 1) forwards; }
 .slide-in-right { animation: slide-in-right 0.35s cubic-bezier(0.4, 0, 0.2, 1) forwards; }
-.slide-in-up { animation: slide-in-up 0.35s cubic-bezier(0.4, 0, 0.2, 1) forwards; }
-.gps-pulse { animation: gps-pulse 2s infinite; }
+.slide-in-up    { animation: slide-in-up    0.35s cubic-bezier(0.4, 0, 0.2, 1) forwards; }
+.gps-pulse      { animation: gps-pulse 2s infinite; }
 
 /* Leaflet overrides */
 .leaflet-container {

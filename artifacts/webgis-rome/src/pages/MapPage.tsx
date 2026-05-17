@@ -16,11 +16,15 @@ import ChatPanel from "@/components/ChatPanel";
 import RoutingPanel, { type RouteResult, type RoutingPoint } from "@/components/RoutingPanel";
 import MusicPlayer from "@/components/MusicPlayer";
 import WeatherWidget from "@/components/WeatherWidget";
+import HotelsPanel from "@/components/HotelsPanel";
+import AttractionsPanel from "@/components/AttractionsPanel";
+import type { HotelListing } from "@/lib/hotelListings";
+import type { AttractionListing } from "@/lib/attractionListings";
 import romeGeoJsonRaw from "@assets/rome_filtered.geojson?raw";
 import {
   MapPin, ZoomIn, ZoomOut, Locate, Download,
   Maximize2, Minimize2, Home, Share2, Star, Sun, Moon, Satellite,
-  Flame, BarChart2, Target, Navigation,
+  Flame, BarChart2, Target, Navigation, BedDouble, Landmark,
 } from "lucide-react";
 
 delete (L.Icon.Default.prototype as unknown as Record<string, unknown>)._getIconUrl;
@@ -216,6 +220,10 @@ export default function MapPage() {
   const [nearbyResults, setNearbyResults] = useState<NearbyResult[]>([]);
   const [showRouting, setShowRouting] = useState(false);
   const [userLocation, setUserLocation] = useState<{ lat: number; lng: number } | null>(null);
+  const [showHotels, setShowHotels] = useState(false);
+  const [hotelDetailId, setHotelDetailId] = useState<string | null>(null);
+  const [showAttractions, setShowAttractions] = useState(false);
+  const [attractionDetailId, setAttractionDetailId] = useState<string | null>(null);
 
   // Init map
   useEffect(() => {
@@ -610,6 +618,76 @@ export default function MapPage() {
   const handleZoomIn = useCallback(() => mapRef.current?.zoomIn(), []);
   const handleZoomOut = useCallback(() => mapRef.current?.zoomOut(), []);
 
+  const handleHotelSelectListing = useCallback((listing: HotelListing) => {
+    mapRef.current?.flyTo([listing.lat, listing.lng], 17, { animate: true, duration: 1.2 });
+    const entry = markersRef.current.find((e) => {
+      const name = String(e.feature.properties.name ?? "").trim().toLowerCase();
+      return name === listing.osmName.toLowerCase();
+    });
+    if (entry) {
+      setSelectedFeature({ feature: entry.feature, category: entry.category });
+    } else {
+      setSelectedFeature({
+        feature: {
+          type: "Feature",
+          geometry: { type: "Point", coordinates: [listing.lng, listing.lat] },
+          properties: { name: listing.osmName, tourism: listing.type === "apartment" ? "apartment" : "hotel" },
+        },
+        category: "tourism",
+      });
+    }
+    setShowHotels(false);
+    setHotelDetailId(null);
+  }, []);
+
+  const handleOpenHotelDetail = useCallback((listingId: string) => {
+    setHotelDetailId(listingId);
+    setShowHotels(true);
+    setShowStats(false);
+    setShowBookmarks(false);
+    setShowAttractions(false);
+  }, []);
+
+  const handleAttractionSelectListing = useCallback((listing: AttractionListing) => {
+    mapRef.current?.flyTo([listing.lat, listing.lng], 17, { animate: true, duration: 1.2 });
+    const entry = markersRef.current.find((e) => {
+      const name = String(e.feature.properties.name ?? "").trim().toLowerCase();
+      const osm = listing.osmName.toLowerCase();
+      return name === osm || name.includes(osm) || osm.includes(name);
+    });
+    if (entry) {
+      setSelectedFeature({ feature: entry.feature, category: entry.category });
+    } else {
+      setSelectedFeature({
+        feature: {
+          type: "Feature",
+          geometry: { type: "Point", coordinates: [listing.lng, listing.lat] },
+          properties: { name: listing.osmName, tourism: listing.category },
+        },
+        category: "tourism",
+      });
+    }
+    setShowAttractions(false);
+    setAttractionDetailId(null);
+  }, []);
+
+  const handleOpenAttractionDetail = useCallback((listingId: string) => {
+    setAttractionDetailId(listingId);
+    setShowAttractions(true);
+    setShowStats(false);
+    setShowBookmarks(false);
+    setShowHotels(false);
+  }, []);
+
+  const closeSidePanels = useCallback(() => {
+    setShowStats(false);
+    setShowBookmarks(false);
+    setShowHotels(false);
+    setShowAttractions(false);
+    setHotelDetailId(null);
+    setAttractionDetailId(null);
+  }, []);
+
   return (
     <div className="relative w-full h-screen overflow-hidden">
       {loading && <LoadingScreen onDone={() => setLoading(false)} />}
@@ -675,14 +753,28 @@ export default function MapPage() {
           )}
 
           {/* Floating left panels — only one shown at a time */}
-          {showStats && (
+          {showStats && !showHotels && !showAttractions && (
             <StatisticsPanel
               stats={statsData}
               total={visibleCount}
               onClose={() => setShowStats(false)}
             />
           )}
-          {showBookmarks && !showStats && (
+          {showAttractions && !showStats && !showBookmarks && !showHotels && (
+            <AttractionsPanel
+              initialListingId={attractionDetailId}
+              onClose={() => { setShowAttractions(false); setAttractionDetailId(null); }}
+              onSelectListing={handleAttractionSelectListing}
+            />
+          )}
+          {showHotels && !showStats && !showBookmarks && !showAttractions && (
+            <HotelsPanel
+              initialListingId={hotelDetailId}
+              onClose={() => { setShowHotels(false); setHotelDetailId(null); }}
+              onSelectListing={handleHotelSelectListing}
+            />
+          )}
+          {showBookmarks && !showStats && !showHotels && !showAttractions && (
             <BookmarkPanel
               bookmarks={bookmarks}
               onFlyTo={(lat, lng) => { mapRef.current?.flyTo([lat, lng], 17, { animate: true }); setShowBookmarks(false); }}
@@ -703,13 +795,15 @@ export default function MapPage() {
           )}
 
           {/* LocationPanel — hidden while nearby mode is active */}
-          {selectedFeature && !nearbyMode && (
+          {selectedFeature && !nearbyMode && !showHotels && !showAttractions && (
             <LocationPanel
               feature={selectedFeature.feature}
               category={selectedFeature.category}
               onClose={() => setSelectedFeature(null)}
               isBookmarked={isCurrentBookmarked}
               onBookmark={handleBookmark}
+              onOpenHotelDetail={handleOpenHotelDetail}
+              onOpenAttractionDetail={handleOpenAttractionDetail}
             />
           )}
 
@@ -851,7 +945,52 @@ export default function MapPage() {
             </button>
 
             {/* Bookmarks */}
-            <button onClick={() => { setShowBookmarks(!showBookmarks); setShowStats(false); }} data-testid="button-bookmarks"
+            <button
+              onClick={() => {
+                if (showAttractions) { setShowAttractions(false); setAttractionDetailId(null); }
+                else { closeSidePanels(); setShowAttractions(true); }
+              }}
+              data-testid="button-attractions"
+              title="Destinasi wisata — detail tempat menarik"
+              className="flex items-center gap-1.5 px-3 py-2 rounded-xl transition-all"
+              style={{
+                background: showAttractions ? "rgba(76,175,125,0.2)" : "rgba(20,16,12,0.85)",
+                backdropFilter: "blur(12px)",
+                border: `1px solid ${showAttractions ? "rgba(76,175,125,0.45)" : "rgba(255,255,255,0.06)"}`,
+                boxShadow: "0 4px 16px rgba(0,0,0,0.5)",
+                color: showAttractions ? "#9fdfb8" : "#c8bfb2",
+              }}
+            >
+              <Landmark size={13} style={{ color: showAttractions ? "#9fdfb8" : "#4caf7d" }} />
+              <span className="text-xs font-medium">Destinasi</span>
+            </button>
+
+            <button
+              onClick={() => {
+                if (showHotels) { setShowHotels(false); setHotelDetailId(null); }
+                else { closeSidePanels(); setShowHotels(true); }
+              }}
+              data-testid="button-hotels"
+              title="Penginapan — detail hotel & apartemen"
+              className="flex items-center gap-1.5 px-3 py-2 rounded-xl transition-all"
+              style={{
+                background: showHotels ? "rgba(76,175,125,0.15)" : "rgba(20,16,12,0.85)",
+                backdropFilter: "blur(12px)",
+                border: `1px solid ${showHotels ? "rgba(76,175,125,0.4)" : "rgba(255,255,255,0.06)"}`,
+                boxShadow: "0 4px 16px rgba(0,0,0,0.5)",
+                color: showHotels ? "#7dcea0" : "#c8bfb2",
+              }}
+            >
+              <BedDouble size={13} style={{ color: showHotels ? "#7dcea0" : "#4caf7d" }} />
+              <span className="text-xs font-medium">Penginapan</span>
+            </button>
+
+            <button
+              onClick={() => {
+                if (showBookmarks) setShowBookmarks(false);
+                else { closeSidePanels(); setShowBookmarks(true); }
+              }}
+              data-testid="button-bookmarks"
               title="Favorit tersimpan"
               className="flex items-center gap-1.5 px-3 py-2 rounded-xl transition-all"
               style={{
@@ -866,7 +1005,12 @@ export default function MapPage() {
             </button>
 
             {/* Statistics */}
-            <button onClick={() => { setShowStats((v) => !v); setShowBookmarks(false); }} data-testid="button-stats"
+            <button
+              onClick={() => {
+                if (showStats) setShowStats(false);
+                else { closeSidePanels(); setShowStats(true); }
+              }}
+              data-testid="button-stats"
               title="Statistik popularitas lokasi"
               className="flex items-center gap-1.5 px-3 py-2 rounded-xl transition-all"
               style={{

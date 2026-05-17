@@ -111,7 +111,7 @@ export default function ChatPanel() {
         const updated = [...prev];
         updated[updated.length - 1] = {
           role: "assistant",
-          content: `❌ ${errMsg}\n\nPastikan chatbot server berjalan:\n\`$env:PYTHONUTF8="1"; python chatbot.py\``,
+          content: `❌ ${errMsg}\n\nPastikan server Ollama berjalan di http://localhost:5000`,
           streaming: false,
         };
         return updated;
@@ -238,12 +238,12 @@ export default function ChatPanel() {
               >
                 <WifiOff size={11} className="flex-shrink-0 mt-0.5" style={{ color: "#c0623a" }} />
                 <div style={{ color: "#c0623a" }}>
-                  Jalankan chatbot server terlebih dahulu:
+                  Pastikan server Ollama berjalan di:
                   <code
                     className="block mt-1 px-2 py-1 rounded text-[10px] break-all"
                     style={{ background: "rgba(0,0,0,0.3)", color: "#e0d8cc" }}
                   >
-                    $env:PYTHONUTF8="1"; python "attached_assets\chatbot_1778926777859.py"
+                    http://localhost:5000
                   </code>
                 </div>
               </div>
