@@ -15,6 +15,7 @@ import NearbyPanel, { type NearbyResult } from "@/components/NearbyPanel";
 import ChatPanel from "@/components/ChatPanel";
 import RoutingPanel, { type RouteResult, type RoutingPoint } from "@/components/RoutingPanel";
 import MusicPlayer from "@/components/MusicPlayer";
+import WeatherWidget from "@/components/WeatherWidget";
 import romeGeoJsonRaw from "@assets/rome_filtered.geojson?raw";
 import {
   MapPin, ZoomIn, ZoomOut, Locate, Download,
@@ -733,6 +734,7 @@ export default function MapPage() {
 
           <ChatPanel />
           <MusicPlayer />
+          <WeatherWidget />
 
           {/* Right toolbar: Zoom + Fullscreen + Home + Share + Heatmap */}
           <div className="absolute right-4 top-1/2 -translate-y-1/2 z-[1000] flex flex-col gap-2">
