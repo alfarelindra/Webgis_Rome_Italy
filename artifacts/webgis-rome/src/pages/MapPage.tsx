@@ -6,7 +6,7 @@ import "leaflet.markercluster/dist/MarkerCluster.Default.css";
 import "leaflet.markercluster";
 import "leaflet.heat";
 import LoadingScreen from "@/components/LoadingScreen";
-import SearchBar from "@/components/SearchBar";
+import SearchBar, { type LocationSuggestion } from "@/components/SearchBar";
 import LayerControl, { LAYER_CONFIG, SUB_CATEGORIES, type LayerKey } from "@/components/LayerControl";
 import LocationPanel from "@/components/LocationPanel";
 import BookmarkPanel, { type BookmarkItem } from "@/components/BookmarkPanel";
@@ -176,6 +176,7 @@ export default function MapPage() {
   const [showStats, setShowStats] = useState(false);
   const [statsData, setStatsData] = useState<CategoryStat[]>([]);
   const [heatRevision, setHeatRevision] = useState(0);
+  const [locationSuggestions, setLocationSuggestions] = useState<LocationSuggestion[]>([]);
 
   // Init map
   useEffect(() => {
@@ -241,6 +242,16 @@ export default function MapPage() {
       clustersRef.current.get(category)?.addLayer(marker);
       markersRef.current.push({ marker, feature, category, subKey });
     });
+
+    // Build sorted suggestion list (named only, alphabetical)
+    const sugg: LocationSuggestion[] = markersRef.current
+      .filter((e) => e.feature.properties.name)
+      .map((e) => {
+        const [lng, lat] = e.feature.geometry.coordinates;
+        return { name: String(e.feature.properties.name), category: e.category, lat, lng };
+      })
+      .sort((a, b) => a.name.localeCompare(b.name));
+    setLocationSuggestions(sugg);
   }, []);
 
   // Update visibility
@@ -331,6 +342,17 @@ export default function MapPage() {
 
   // --- Handlers ---
   const handleSearch = useCallback((q: string) => setSearchQuery(q), []);
+
+  const handleSelectSuggestion = useCallback((item: LocationSuggestion) => {
+    setSearchQuery(item.name);
+    mapRef.current?.flyTo([item.lat, item.lng], 17, { animate: true, duration: 1.0 });
+    // Find matching feature and open its panel
+    const entry = markersRef.current.find((e) => {
+      const [lng, lat] = e.feature.geometry.coordinates;
+      return Math.abs(lat - item.lat) < 0.00001 && Math.abs(lng - item.lng) < 0.00001;
+    });
+    if (entry) setSelectedFeature({ feature: entry.feature, category: entry.category });
+  }, []);
   const handleLayerToggle = useCallback((k: LayerKey) => setLayers((p) => ({ ...p, [k]: !p[k] })), []);
   const handleSubToggle = useCallback((sk: string) => setSubLayers((p) => ({ ...p, [sk]: p[sk] === false })), []);
 
@@ -438,7 +460,13 @@ export default function MapPage() {
 
       {!loading && (
         <>
-          <SearchBar onSearch={handleSearch} resultCount={visibleCount} totalCount={totalCount} />
+          <SearchBar
+            onSearch={handleSearch}
+            onSelect={handleSelectSuggestion}
+            suggestions={locationSuggestions}
+            resultCount={visibleCount}
+            totalCount={totalCount}
+          />
 
           {/* Map style switcher — top right */}
           <div
