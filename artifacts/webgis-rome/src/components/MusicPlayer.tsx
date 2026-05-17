@@ -71,8 +71,8 @@ export default function MusicPlayer() {
 
   return (
     <div
-      className="absolute bottom-[72px] left-4 z-[1000]"
-      style={{ width: "200px" }}
+      className="absolute bottom-20 z-[1000]"
+      style={{ width: "196px", left: "248px" }}
       data-testid="music-player"
     >
       <div
