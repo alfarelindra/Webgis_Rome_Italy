@@ -8,9 +8,13 @@ import LoadingScreen from "@/components/LoadingScreen";
 import SearchBar from "@/components/SearchBar";
 import LayerControl, { LAYER_CONFIG, SUB_CATEGORIES, type LayerKey } from "@/components/LayerControl";
 import LocationPanel from "@/components/LocationPanel";
+import BookmarkPanel, { type BookmarkItem } from "@/components/BookmarkPanel";
 import ChatPanel from "@/components/ChatPanel";
 import romeGeoJsonRaw from "@assets/rome_filtered.geojson?raw";
-import { MapPin, ZoomIn, ZoomOut, Locate, Download } from "lucide-react";
+import {
+  MapPin, ZoomIn, ZoomOut, Locate, Download,
+  Maximize2, Minimize2, Home, Share2, Star, Sun, Moon, Satellite,
+} from "lucide-react";
 
 delete (L.Icon.Default.prototype as unknown as Record<string, unknown>)._getIconUrl;
 L.Icon.Default.mergeOptions({
@@ -19,6 +23,27 @@ L.Icon.Default.mergeOptions({
   shadowUrl: "https://unpkg.com/leaflet@1.9.4/dist/images/marker-shadow.png",
 });
 
+// --- Tile styles ---
+const TILE_STYLES = {
+  dark: {
+    url: "https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png",
+    attr: '&copy; <a href="https://www.openstreetmap.org/copyright">OSM</a> &copy; <a href="https://carto.com/attributions">CARTO</a>',
+    subdomains: "abcd",
+  },
+  light: {
+    url: "https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png",
+    attr: '&copy; <a href="https://www.openstreetmap.org/copyright">OSM</a> &copy; <a href="https://carto.com/attributions">CARTO</a>',
+    subdomains: "abcd",
+  },
+  satellite: {
+    url: "https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}",
+    attr: "&copy; Esri &mdash; Source: Esri, i-cubed, USDA, USGS, AEX, GeoEye, Getmapping, Aerogrid, IGN, IGP, UPR-EGP, and the GIS User Community",
+    subdomains: undefined,
+  },
+} as const;
+type MapStyle = keyof typeof TILE_STYLES;
+
+// --- GeoJSON types ---
 interface GeoFeature {
   type: "Feature";
   geometry: { type: "Point"; coordinates: [number, number] };
@@ -32,35 +57,35 @@ function getCategoryForFeature(props: Record<string, string | number | null>): L
   return "default";
 }
 
-function getSubKeyForFeature(
-  category: LayerKey,
-  props: Record<string, string | number | null>
-): string | null {
+function getSubKeyForFeature(category: LayerKey, props: Record<string, string | number | null>): string | null {
   const subs = SUB_CATEGORIES[category];
   if (!subs) return null;
-  const value = props.amenity ?? props.tourism ?? props.shop ?? props.highway ?? props.railway;
+  const value = props.amenity ?? props.tourism ?? props.highway ?? props.railway;
   if (!value) return null;
   const found = subs.find((s) => s.key === String(value));
   return found ? `${category}:${found.key}` : null;
 }
 
+function getSubLabel(category: LayerKey, subKey: string | null): string {
+  if (!subKey) return LAYER_CONFIG[category].label;
+  const sub = SUB_CATEGORIES[category]?.find((s) => s.key === subKey.split(":")[1]);
+  return sub?.label ?? LAYER_CONFIG[category].label;
+}
+
 function buildDefaultSubLayers(): Record<string, boolean> {
   const result: Record<string, boolean> = {};
   (Object.keys(SUB_CATEGORIES) as LayerKey[]).forEach((cat) => {
-    SUB_CATEGORIES[cat]?.forEach((sub) => {
-      result[`${cat}:${sub.key}`] = true;
-    });
+    SUB_CATEGORIES[cat]?.forEach((sub) => { result[`${cat}:${sub.key}`] = true; });
   });
   return result;
 }
 
 function createSvgMarker(color: string, size = 20): L.DivIcon {
-  const svg = `<svg width="${size}" height="${size}" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-    <circle cx="12" cy="12" r="9" fill="${color}" fill-opacity="0.9" stroke="rgba(255,255,255,0.4)" stroke-width="1.5"/>
-    <circle cx="12" cy="12" r="4" fill="rgba(255,255,255,0.6)"/>
-  </svg>`;
   return L.divIcon({
-    html: svg,
+    html: `<svg width="${size}" height="${size}" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+      <circle cx="12" cy="12" r="9" fill="${color}" fill-opacity="0.9" stroke="rgba(255,255,255,0.4)" stroke-width="1.5"/>
+      <circle cx="12" cy="12" r="4" fill="rgba(255,255,255,0.6)"/>
+    </svg>`,
     className: "",
     iconSize: [size, size],
     iconAnchor: [size / 2, size / 2],
@@ -72,16 +97,8 @@ function createClusterIcon(color: string) {
   return (cluster: L.MarkerCluster) => {
     const count = cluster.getChildCount();
     const size = count < 10 ? 34 : count < 50 ? 40 : 48;
-    const fontSize = count < 10 ? 12 : count < 100 ? 11 : 10;
     return L.divIcon({
-      html: `<div style="
-        width:${size}px;height:${size}px;border-radius:50%;
-        background:${color};opacity:0.92;
-        border:2px solid rgba(255,255,255,0.35);
-        display:flex;align-items:center;justify-content:center;
-        font-size:${fontSize}px;font-weight:700;color:#fff;
-        box-shadow:0 2px 10px rgba(0,0,0,0.5);
-      ">${count}</div>`,
+      html: `<div style="width:${size}px;height:${size}px;border-radius:50%;background:${color};opacity:0.92;border:2px solid rgba(255,255,255,0.35);display:flex;align-items:center;justify-content:center;font-size:${count < 10 ? 12 : 11}px;font-weight:700;color:#fff;box-shadow:0 2px 10px rgba(0,0,0,0.5);">${count}</div>`,
       className: "",
       iconSize: [size, size],
       iconAnchor: [size / 2, size / 2],
@@ -102,7 +119,8 @@ function createGpsMarker(): L.DivIcon {
   });
 }
 
-type LayerState = Record<LayerKey, boolean>;
+const ROME_CENTER: [number, number] = [41.8875, 12.4892];
+const BOOKMARKS_KEY = "webgis_rome_bookmarks";
 
 interface MarkerEntry {
   marker: L.Marker;
@@ -111,20 +129,28 @@ interface MarkerEntry {
   subKey: string | null;
 }
 
+// Shared panel button style
+const toolBtn = {
+  background: "rgba(20,16,12,0.9)",
+  backdropFilter: "blur(12px)",
+  WebkitBackdropFilter: "blur(12px)",
+  border: "1px solid rgba(255,255,255,0.08)",
+  boxShadow: "0 4px 12px rgba(0,0,0,0.5)",
+  color: "#c8bfb2",
+} as const;
+
 export default function MapPage() {
   const [loading, setLoading] = useState(true);
   const mapRef = useRef<L.Map | null>(null);
   const mapContainerRef = useRef<HTMLDivElement>(null);
+  const tileLayerRef = useRef<L.TileLayer | null>(null);
   const clustersRef = useRef<Map<LayerKey, L.MarkerClusterGroup>>(new Map());
   const markersRef = useRef<MarkerEntry[]>([]);
   const gpsMarkerRef = useRef<L.Marker | null>(null);
 
   const [searchQuery, setSearchQuery] = useState("");
-  const [layers, setLayers] = useState<LayerState>({
-    tourism: true,
-    railway: true,
-    amenity: true,
-    default: true,
+  const [layers, setLayers] = useState<Record<LayerKey, boolean>>({
+    tourism: true, railway: true, amenity: true, default: true,
   });
   const [subLayers, setSubLayers] = useState<Record<string, boolean>>(buildDefaultSubLayers);
   const [selectedFeature, setSelectedFeature] = useState<{ feature: GeoFeature; category: LayerKey } | null>(null);
@@ -132,29 +158,33 @@ export default function MapPage() {
   const [visibleCount, setVisibleCount] = useState(0);
   const [gpsActive, setGpsActive] = useState(false);
 
-  // Initialize map + per-category cluster groups
+  // New feature states
+  const [mapStyle, setMapStyle] = useState<MapStyle>("dark");
+  const [isFullscreen, setIsFullscreen] = useState(false);
+  const [showBookmarks, setShowBookmarks] = useState(false);
+  const [bookmarks, setBookmarks] = useState<BookmarkItem[]>(() => {
+    try { return JSON.parse(localStorage.getItem(BOOKMARKS_KEY) ?? "[]"); } catch { return []; }
+  });
+  const [coords, setCoords] = useState<{ lat: number; lng: number } | null>(null);
+  const [shareToast, setShareToast] = useState(false);
+
+  // Init map
   useEffect(() => {
     if (!mapContainerRef.current || mapRef.current) return;
-
     const map = L.map(mapContainerRef.current, {
-      center: [41.8875, 12.4892],
-      zoom: 14,
-      zoomControl: false,
-      attributionControl: true,
+      center: ROME_CENTER, zoom: 14, zoomControl: false, attributionControl: true,
     });
 
-    L.tileLayer("https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png", {
-      attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> &copy; <a href="https://carto.com/attributions">CARTO</a>',
-      subdomains: "abcd",
-      maxZoom: 20,
-    }).addTo(map);
+    const style = TILE_STYLES.dark;
+    const tile = L.tileLayer(style.url, { attribution: style.attr, subdomains: style.subdomains ?? "abc", maxZoom: 20 });
+    tile.addTo(map);
+    tileLayerRef.current = tile;
 
-    // One cluster group per category
+    // Cluster groups per category
     (Object.keys(LAYER_CONFIG) as LayerKey[]).forEach((key) => {
-      const color = LAYER_CONFIG[key].color;
-      const group = (L as unknown as { markerClusterGroup: (opts: unknown) => L.MarkerClusterGroup }).markerClusterGroup({
+      const group = (L as unknown as { markerClusterGroup: (o: unknown) => L.MarkerClusterGroup }).markerClusterGroup({
         maxClusterRadius: 60,
-        iconCreateFunction: createClusterIcon(color),
+        iconCreateFunction: createClusterIcon(LAYER_CONFIG[key].color),
         spiderfyOnMaxZoom: true,
         showCoverageOnHover: false,
         zoomToBoundsOnClick: true,
@@ -165,32 +195,31 @@ export default function MapPage() {
       clustersRef.current.set(key, group);
     });
 
+    // Mouse coords
+    map.on("mousemove", (e) => setCoords({ lat: e.latlng.lat, lng: e.latlng.lng }));
+    map.on("mouseout", () => setCoords(null));
+
     mapRef.current = map;
     return () => { map.remove(); mapRef.current = null; clustersRef.current.clear(); };
   }, []);
 
-  // Load GeoJSON features into cluster groups
+  // Load features
   useEffect(() => {
     if (!mapRef.current || clustersRef.current.size === 0) return;
+    const { features } = JSON.parse(romeGeoJsonRaw) as { features: GeoFeature[] };
+    const pts = features.filter((f) => f.geometry?.type === "Point");
+    setTotalCount(pts.length);
+    setVisibleCount(pts.length);
 
-    const romeGeoJson = JSON.parse(romeGeoJsonRaw) as { features: GeoFeature[] };
-    const features = romeGeoJson.features.filter((f) => f.geometry?.type === "Point");
-    setTotalCount(features.length);
-    setVisibleCount(features.length);
-
-    features.forEach((feature) => {
+    pts.forEach((feature) => {
       const [lng, lat] = feature.geometry.coordinates;
       const category = getCategoryForFeature(feature.properties);
       const subKey = getSubKeyForFeature(category, feature.properties);
       const config = LAYER_CONFIG[category];
-
-      const subLabel = subKey
-        ? (SUB_CATEGORIES[category]?.find((s) => s.key === subKey.split(":")[1])?.label ?? config.label)
-        : config.label;
-
-      const marker = L.marker([lat, lng], { icon: createSvgMarker(config.color) });
+      const subLabel = getSubLabel(category, subKey);
       const name = feature.properties.name || "Lokasi Tidak Bernama";
 
+      const marker = L.marker([lat, lng], { icon: createSvgMarker(config.color) });
       marker.bindPopup(
         `<div style="min-width:170px;padding:4px 2px">
           <div style="font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:0.1em;color:${config.color};margin-bottom:5px;">${subLabel}</div>
@@ -199,54 +228,78 @@ export default function MapPage() {
         </div>`,
         { closeButton: true, autoClose: true }
       );
-
       marker.on("click", () => setSelectedFeature({ feature, category }));
-
       clustersRef.current.get(category)?.addLayer(marker);
       markersRef.current.push({ marker, feature, category, subKey });
     });
   }, []);
 
-  // Update visibility: rebuild each cluster group from filtered markers
+  // Update visibility
   const updateVisibility = useCallback(() => {
     if (!mapRef.current) return;
     const map = mapRef.current;
-
-    // Clear all clusters
-    clustersRef.current.forEach((group) => group.clearLayers());
-
+    clustersRef.current.forEach((g) => g.clearLayers());
     let visible = 0;
     markersRef.current.forEach(({ marker, feature, category, subKey }) => {
       const name = String(feature.properties.name || "").toLowerCase();
-      const matchesSearch = !searchQuery || name.includes(searchQuery.toLowerCase());
-      const layerOn = layers[category];
-      const subOn = subKey ? subLayers[subKey] !== false : true;
-
-      if (matchesSearch && layerOn && subOn) {
-        clustersRef.current.get(category)?.addLayer(marker);
-        visible++;
-      }
+      const ok = (!searchQuery || name.includes(searchQuery.toLowerCase()))
+        && layers[category]
+        && (subKey ? subLayers[subKey] !== false : true);
+      if (ok) { clustersRef.current.get(category)?.addLayer(marker); visible++; }
     });
-
-    // Show/hide cluster groups based on layer toggle
-    clustersRef.current.forEach((group, key) => {
-      if (layers[key]) {
-        if (!map.hasLayer(group)) group.addTo(map);
-      } else {
-        if (map.hasLayer(group)) map.removeLayer(group);
-      }
+    clustersRef.current.forEach((g, key) => {
+      if (layers[key]) { if (!map.hasLayer(g)) g.addTo(map); }
+      else { if (map.hasLayer(g)) map.removeLayer(g); }
     });
-
     setVisibleCount(visible);
   }, [searchQuery, layers, subLayers]);
 
   useEffect(() => { updateVisibility(); }, [updateVisibility]);
 
+  // Persist bookmarks
+  useEffect(() => {
+    localStorage.setItem(BOOKMARKS_KEY, JSON.stringify(bookmarks));
+  }, [bookmarks]);
+
+  // --- Handlers ---
   const handleSearch = useCallback((q: string) => setSearchQuery(q), []);
-  const handleLayerToggle = useCallback((key: LayerKey) => setLayers((prev) => ({ ...prev, [key]: !prev[key] })), []);
-  const handleSubToggle = useCallback((subKey: string) => {
-    setSubLayers((prev) => ({ ...prev, [subKey]: prev[subKey] === false }));
+  const handleLayerToggle = useCallback((k: LayerKey) => setLayers((p) => ({ ...p, [k]: !p[k] })), []);
+  const handleSubToggle = useCallback((sk: string) => setSubLayers((p) => ({ ...p, [sk]: p[sk] === false })), []);
+
+  const handleStyleChange = useCallback((style: MapStyle) => {
+    if (!mapRef.current || !tileLayerRef.current) return;
+    mapRef.current.removeLayer(tileLayerRef.current);
+    const s = TILE_STYLES[style];
+    const tile = L.tileLayer(s.url, { attribution: s.attr, subdomains: s.subdomains ?? "abc", maxZoom: 20 });
+    tile.addTo(mapRef.current);
+    tileLayerRef.current = tile;
+    setMapStyle(style);
+    // Light mode: adjust html background
+    document.documentElement.classList.toggle("dark", style !== "light");
   }, []);
+
+  const handleHome = useCallback(() => {
+    mapRef.current?.flyTo(ROME_CENTER, 14, { animate: true, duration: 1.2 });
+  }, []);
+
+  const handleFullscreen = useCallback(() => {
+    if (!document.fullscreenElement) {
+      document.documentElement.requestFullscreen().then(() => setIsFullscreen(true)).catch(() => {});
+    } else {
+      document.exitFullscreen().then(() => setIsFullscreen(false)).catch(() => {});
+    }
+  }, []);
+
+  const handleShare = useCallback(() => {
+    if (!mapRef.current) return;
+    const center = mapRef.current.getCenter();
+    const zoom = mapRef.current.getZoom();
+    const url = `${window.location.origin}${window.location.pathname}?lat=${center.lat.toFixed(5)}&lng=${center.lng.toFixed(5)}&z=${zoom}&style=${mapStyle}`;
+    navigator.clipboard.writeText(url).then(() => {
+      setShareToast(true);
+      setTimeout(() => setShareToast(false), 2500);
+    });
+  }, [mapStyle]);
 
   const handleGps = useCallback(() => {
     if (!mapRef.current || !navigator.geolocation) return;
@@ -255,7 +308,7 @@ export default function MapPage() {
       ({ coords: { latitude, longitude } }) => {
         gpsMarkerRef.current?.remove();
         const m = L.marker([latitude, longitude], { icon: createGpsMarker() });
-        if (mapRef.current) { m.addTo(mapRef.current); mapRef.current.setView([latitude, longitude], 16, { animate: true }); }
+        if (mapRef.current) { m.addTo(mapRef.current); mapRef.current.flyTo([latitude, longitude], 16, { animate: true }); }
         gpsMarkerRef.current = m;
         setGpsActive(false);
       },
@@ -264,36 +317,51 @@ export default function MapPage() {
     );
   }, []);
 
-  const handleZoomIn = useCallback(() => mapRef.current?.zoomIn(), []);
-  const handleZoomOut = useCallback(() => mapRef.current?.zoomOut(), []);
-
   const handleExport = useCallback(() => {
     if (!mapRef.current) return;
     const bounds = mapRef.current.getBounds();
-
-    const visibleFeatures = markersRef.current
+    const visible = markersRef.current
       .filter(({ feature, category, subKey }) => {
         const [lng, lat] = feature.geometry.coordinates;
         if (!bounds.contains([lat, lng])) return false;
         const name = String(feature.properties.name || "").toLowerCase();
-        const matchesSearch = !searchQuery || name.includes(searchQuery.toLowerCase());
-        const layerOn = layers[category];
-        const subOn = subKey ? subLayers[subKey] !== false : true;
-        return matchesSearch && layerOn && subOn;
+        return (!searchQuery || name.includes(searchQuery.toLowerCase()))
+          && layers[category]
+          && (subKey ? subLayers[subKey] !== false : true);
       })
       .map(({ feature }) => feature);
-
-    if (visibleFeatures.length === 0) return;
-
-    const geojson = { type: "FeatureCollection", features: visibleFeatures };
-    const blob = new Blob([JSON.stringify(geojson, null, 2)], { type: "application/json" });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement("a");
-    a.href = url;
-    a.download = `roma_visible_${visibleFeatures.length}_lokasi.geojson`;
+    if (!visible.length) return;
+    const blob = new Blob([JSON.stringify({ type: "FeatureCollection", features: visible }, null, 2)], { type: "application/json" });
+    const a = Object.assign(document.createElement("a"), { href: URL.createObjectURL(blob), download: `roma_${visible.length}_lokasi.geojson` });
     a.click();
-    URL.revokeObjectURL(url);
+    URL.revokeObjectURL(a.href);
   }, [searchQuery, layers, subLayers]);
+
+  const handleBookmark = useCallback(() => {
+    if (!selectedFeature) return;
+    const { feature, category } = selectedFeature;
+    const [lng, lat] = feature.geometry.coordinates;
+    const id = `${lat}_${lng}`;
+    const subKey = getSubKeyForFeature(category, feature.properties);
+    setBookmarks((prev) => {
+      if (prev.find((b) => b.id === id)) return prev.filter((b) => b.id !== id);
+      return [...prev, {
+        id, lat, lng, category,
+        name: String(feature.properties.name || "Lokasi Tidak Bernama"),
+        subLabel: getSubLabel(category, subKey),
+      }];
+    });
+  }, [selectedFeature]);
+
+  const isCurrentBookmarked = selectedFeature
+    ? !!bookmarks.find((b) => {
+        const [lng, lat] = selectedFeature.feature.geometry.coordinates;
+        return b.id === `${lat}_${lng}`;
+      })
+    : false;
+
+  const handleZoomIn = useCallback(() => mapRef.current?.zoomIn(), []);
+  const handleZoomOut = useCallback(() => mapRef.current?.zoomOut(), []);
 
   return (
     <div className="relative w-full h-screen overflow-hidden">
@@ -304,41 +372,71 @@ export default function MapPage() {
         <>
           <SearchBar onSearch={handleSearch} resultCount={visibleCount} totalCount={totalCount} />
 
-          <LayerControl
-            layers={layers}
-            onToggle={handleLayerToggle}
-            subLayers={subLayers}
-            onSubToggle={handleSubToggle}
-          />
+          {/* Map style switcher — top right */}
+          <div
+            className="absolute top-4 right-4 z-[1000] flex gap-1 p-1 rounded-xl"
+            style={{ background: "rgba(20,16,12,0.88)", backdropFilter: "blur(14px)", border: "1px solid rgba(255,255,255,0.08)", boxShadow: "0 4px 16px rgba(0,0,0,0.5)" }}
+            data-testid="style-switcher"
+          >
+            {([
+              { key: "dark" as MapStyle, icon: <Moon size={13} />, label: "Gelap" },
+              { key: "light" as MapStyle, icon: <Sun size={13} />, label: "Terang" },
+              { key: "satellite" as MapStyle, icon: <Satellite size={13} />, label: "Satelit" },
+            ]).map(({ key, icon, label }) => (
+              <button
+                key={key}
+                onClick={() => handleStyleChange(key)}
+                title={label}
+                data-testid={`button-style-${key}`}
+                className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs font-medium transition-all"
+                style={{
+                  background: mapStyle === key ? "rgba(192,98,58,0.25)" : "transparent",
+                  color: mapStyle === key ? "#c0623a" : "#6b5e52",
+                  border: mapStyle === key ? "1px solid rgba(192,98,58,0.35)" : "1px solid transparent",
+                }}
+              >
+                {icon}
+                <span className="hidden sm:inline">{label}</span>
+              </button>
+            ))}
+          </div>
+
+          <LayerControl layers={layers} onToggle={handleLayerToggle} subLayers={subLayers} onSubToggle={handleSubToggle} />
+
+          {/* Bookmark panel */}
+          {showBookmarks && (
+            <BookmarkPanel
+              bookmarks={bookmarks}
+              onFlyTo={(lat, lng) => { mapRef.current?.flyTo([lat, lng], 17, { animate: true }); setShowBookmarks(false); }}
+              onRemove={(id) => setBookmarks((p) => p.filter((b) => b.id !== id))}
+              onClose={() => setShowBookmarks(false)}
+            />
+          )}
 
           {selectedFeature && (
             <LocationPanel
               feature={selectedFeature.feature}
               category={selectedFeature.category}
               onClose={() => setSelectedFeature(null)}
+              isBookmarked={isCurrentBookmarked}
+              onBookmark={handleBookmark}
             />
           )}
 
           <ChatPanel />
 
-          {/* Zoom controls */}
+          {/* Right toolbar: Zoom + Fullscreen + Home + Share */}
           <div className="absolute right-4 top-1/2 -translate-y-1/2 z-[1000] flex flex-col gap-2">
             {([
-              { fn: handleZoomIn, icon: <ZoomIn size={16} />, id: "button-zoom-in" },
-              { fn: handleZoomOut, icon: <ZoomOut size={16} />, id: "button-zoom-out" },
-            ] as const).map(({ fn, icon, id }) => (
-              <button
-                key={id}
-                onClick={fn}
-                data-testid={id}
-                className="w-9 h-9 rounded-xl flex items-center justify-center"
-                style={{
-                  background: "rgba(20,16,12,0.9)",
-                  backdropFilter: "blur(12px)",
-                  border: "1px solid rgba(255,255,255,0.08)",
-                  boxShadow: "0 4px 12px rgba(0,0,0,0.5)",
-                  color: "#c8bfb2",
-                }}
+              { fn: handleZoomIn, icon: <ZoomIn size={15} />, id: "button-zoom-in", title: "Zoom In" },
+              { fn: handleZoomOut, icon: <ZoomOut size={15} />, id: "button-zoom-out", title: "Zoom Out" },
+              { fn: handleHome, icon: <Home size={15} />, id: "button-home", title: "Kembali ke Roma" },
+              { fn: handleFullscreen, icon: isFullscreen ? <Minimize2 size={15} /> : <Maximize2 size={15} />, id: "button-fullscreen", title: "Layar Penuh" },
+              { fn: handleShare, icon: <Share2 size={15} />, id: "button-share", title: "Bagikan tampilan ini" },
+            ] as const).map(({ fn, icon, id, title }) => (
+              <button key={id} onClick={fn} title={title} data-testid={id}
+                className="w-9 h-9 rounded-xl flex items-center justify-center transition-all hover:border-[rgba(192,98,58,0.3)]"
+                style={toolBtn}
               >
                 {icon}
               </button>
@@ -346,9 +444,7 @@ export default function MapPage() {
           </div>
 
           {/* GPS */}
-          <button
-            onClick={handleGps}
-            data-testid="button-gps"
+          <button onClick={handleGps} data-testid="button-gps"
             className="absolute bottom-6 left-4 z-[1000] w-10 h-10 rounded-xl flex items-center justify-center transition-all"
             style={{
               background: gpsActive ? "linear-gradient(135deg,#c0623a,#d4a843)" : "rgba(20,16,12,0.9)",
@@ -356,55 +452,74 @@ export default function MapPage() {
               border: `1px solid ${gpsActive ? "rgba(192,98,58,0.5)" : "rgba(255,255,255,0.08)"}`,
               boxShadow: gpsActive ? "0 4px 16px rgba(192,98,58,0.4)" : "0 4px 12px rgba(0,0,0,0.5)",
               color: gpsActive ? "white" : "#c8bfb2",
-            }}
-          >
+            }}>
             <Locate size={16} className={gpsActive ? "animate-spin" : ""} />
           </button>
 
-          {/* Stats bar */}
-          <div
-            className="absolute bottom-4 left-1/2 -translate-x-1/2 z-[1000] flex items-center gap-2"
-            data-testid="stats-bar"
-          >
-            <div
-              className="flex items-center gap-3 px-4 py-2 rounded-xl"
-              style={{
-                background: "rgba(20,16,12,0.85)",
-                backdropFilter: "blur(12px)",
-                border: "1px solid rgba(255,255,255,0.06)",
-                boxShadow: "0 4px 16px rgba(0,0,0,0.5)",
-              }}
-            >
+          {/* Bottom bar: Stats + Export + Bookmarks */}
+          <div className="absolute bottom-4 left-1/2 -translate-x-1/2 z-[1000] flex items-center gap-2" data-testid="stats-bar">
+            {/* Stats */}
+            <div className="flex items-center gap-3 px-4 py-2 rounded-xl"
+              style={{ background: "rgba(20,16,12,0.85)", backdropFilter: "blur(12px)", border: "1px solid rgba(255,255,255,0.06)", boxShadow: "0 4px 16px rgba(0,0,0,0.5)" }}>
               <MapPin size={12} style={{ color: "#c0623a" }} />
               <span className="text-xs" style={{ color: "#8a7060" }}>
-                <span style={{ color: "#d4a843" }}>{visibleCount}</span> lokasi ditampilkan
+                <span style={{ color: "#d4a843" }}>{visibleCount}</span> lokasi
               </span>
-              <div style={{ width: "1px", height: "12px", background: "rgba(255,255,255,0.08)" }} />
-              <span className="text-xs font-medium tracking-wider uppercase" style={{ color: "#6b5e52" }}>
-                Roma, Italia
-              </span>
+              {coords && (
+                <>
+                  <div style={{ width: "1px", height: "12px", background: "rgba(255,255,255,0.08)" }} />
+                  <span className="text-[10px] font-mono" style={{ color: "#6b5e52" }}>
+                    {coords.lat.toFixed(4)}, {coords.lng.toFixed(4)}
+                  </span>
+                </>
+              )}
+              {!coords && (
+                <>
+                  <div style={{ width: "1px", height: "12px", background: "rgba(255,255,255,0.08)" }} />
+                  <span className="text-xs font-medium tracking-wider uppercase" style={{ color: "#6b5e52" }}>Roma, Italia</span>
+                </>
+              )}
             </div>
 
-            {/* Export button */}
-            <button
-              onClick={handleExport}
-              data-testid="button-export"
-              title="Unduh lokasi di area ini sebagai GeoJSON"
-              className="flex items-center gap-2 px-3 py-2 rounded-xl transition-all group"
+            {/* Export */}
+            <button onClick={handleExport} data-testid="button-export" title="Unduh lokasi di area ini"
+              className="flex items-center gap-1.5 px-3 py-2 rounded-xl transition-all"
+              style={{ background: "rgba(20,16,12,0.85)", backdropFilter: "blur(12px)", border: "1px solid rgba(192,98,58,0.2)", boxShadow: "0 4px 16px rgba(0,0,0,0.5)", color: "#c8bfb2" }}>
+              <Download size={13} style={{ color: "#c0623a" }} />
+              <span className="text-xs font-medium">Export</span>
+            </button>
+
+            {/* Bookmarks */}
+            <button onClick={() => setShowBookmarks(!showBookmarks)} data-testid="button-bookmarks"
+              title="Favorit tersimpan"
+              className="flex items-center gap-1.5 px-3 py-2 rounded-xl transition-all"
               style={{
-                background: "rgba(20,16,12,0.85)",
+                background: showBookmarks ? "rgba(212,168,67,0.12)" : "rgba(20,16,12,0.85)",
                 backdropFilter: "blur(12px)",
-                border: "1px solid rgba(192,98,58,0.25)",
+                border: `1px solid ${showBookmarks ? "rgba(212,168,67,0.35)" : "rgba(255,255,255,0.06)"}`,
                 boxShadow: "0 4px 16px rgba(0,0,0,0.5)",
-                color: "#c0623a",
-              }}
-            >
-              <Download size={13} />
-              <span className="text-xs font-medium" style={{ color: "#c8bfb2" }}>
-                Export
-              </span>
+                color: showBookmarks ? "#d4a843" : "#c8bfb2",
+              }}>
+              <Star size={13} fill={showBookmarks ? "#d4a843" : "none"} style={{ color: showBookmarks ? "#d4a843" : "#c8bfb2" }} />
+              <span className="text-xs font-medium">{bookmarks.length > 0 ? bookmarks.length : "Favorit"}</span>
             </button>
           </div>
+
+          {/* Share toast */}
+          {shareToast && (
+            <div
+              className="absolute top-16 left-1/2 -translate-x-1/2 z-[2000] px-4 py-2 rounded-xl text-sm font-medium"
+              style={{
+                background: "rgba(20,16,12,0.96)",
+                border: "1px solid rgba(192,98,58,0.4)",
+                color: "#e0d8cc",
+                boxShadow: "0 8px 24px rgba(0,0,0,0.6)",
+                animation: "fade-in-up 0.3s ease",
+              }}
+            >
+              ✓ Link berhasil disalin ke clipboard
+            </div>
+          )}
         </>
       )}
     </div>

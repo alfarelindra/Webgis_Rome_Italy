@@ -1,9 +1,8 @@
-import { X, MapPin, Clock, Train, Landmark, HelpCircle } from "lucide-react";
+import { X, MapPin, Clock, Train, Landmark, HelpCircle, Star } from "lucide-react";
 import { LAYER_CONFIG, type LayerKey } from "./LayerControl";
 
 interface LocationProperties {
   name?: string | null;
-  shop?: string | null;
   tourism?: string | null;
   railway?: string | null;
   highway?: string | null;
@@ -19,6 +18,8 @@ interface LocationPanelProps {
   feature: { properties: LocationProperties } | null;
   category: LayerKey | null;
   onClose: () => void;
+  isBookmarked?: boolean;
+  onBookmark?: () => void;
 }
 
 function getCategoryIcon(category: LayerKey | null) {
@@ -38,7 +39,6 @@ const SKIP_KEYS = new Set([
 
 const KEY_LABELS: Record<string, string> = {
   name: "Nama",
-  shop: "Tipe Toko",
   tourism: "Wisata",
   railway: "Transportasi",
   highway: "Jalan",
@@ -49,7 +49,7 @@ const KEY_LABELS: Record<string, string> = {
   capacity: "Kapasitas",
 };
 
-export default function LocationPanel({ feature, category, onClose }: LocationPanelProps) {
+export default function LocationPanel({ feature, category, onClose, isBookmarked, onBookmark }: LocationPanelProps) {
   if (!feature) return null;
 
   const props = feature.properties;
@@ -76,35 +76,41 @@ export default function LocationPanel({ feature, category, onClose }: LocationPa
         }}
       >
         {/* Header */}
-        <div
-          className="p-4 flex-shrink-0"
-          style={{ borderBottom: "1px solid rgba(255,255,255,0.06)" }}
-        >
+        <div className="p-4 flex-shrink-0" style={{ borderBottom: "1px solid rgba(255,255,255,0.06)" }}>
           <div className="flex items-start justify-between gap-2">
             <div className="flex-1 min-w-0">
-              <div
-                className="flex items-center gap-2 mb-2 text-xs font-medium uppercase tracking-wider"
-                style={{ color: config.color }}
-              >
+              <div className="flex items-center gap-2 mb-2 text-xs font-medium uppercase tracking-wider" style={{ color: config.color }}>
                 {getCategoryIcon(category)}
                 {config.label}
               </div>
-              <h2
-                className="text-base font-semibold leading-tight"
-                style={{ color: "#e8ddd0" }}
-                data-testid="text-location-name"
-              >
+              <h2 className="text-base font-semibold leading-tight" style={{ color: "#e8ddd0" }} data-testid="text-location-name">
                 {name}
               </h2>
             </div>
-            <button
-              onClick={onClose}
-              className="p-1.5 rounded-lg transition-colors flex-shrink-0"
-              style={{ color: "#6b5e52", background: "rgba(255,255,255,0.04)" }}
-              data-testid="button-close-panel"
-            >
-              <X size={16} />
-            </button>
+            <div className="flex items-center gap-1 flex-shrink-0">
+              {onBookmark && (
+                <button
+                  onClick={onBookmark}
+                  className="p-1.5 rounded-lg transition-all"
+                  style={{
+                    color: isBookmarked ? "#d4a843" : "#6b5e52",
+                    background: isBookmarked ? "rgba(212,168,67,0.12)" : "rgba(255,255,255,0.04)",
+                  }}
+                  title={isBookmarked ? "Hapus dari favorit" : "Simpan ke favorit"}
+                  data-testid="button-bookmark"
+                >
+                  <Star size={15} fill={isBookmarked ? "#d4a843" : "none"} />
+                </button>
+              )}
+              <button
+                onClick={onClose}
+                className="p-1.5 rounded-lg transition-colors"
+                style={{ color: "#6b5e52", background: "rgba(255,255,255,0.04)" }}
+                data-testid="button-close-panel"
+              >
+                <X size={16} />
+              </button>
+            </div>
           </div>
         </div>
 
@@ -112,21 +118,11 @@ export default function LocationPanel({ feature, category, onClose }: LocationPa
         <div className="flex-1 overflow-y-auto p-4">
           <div className="flex flex-col gap-2">
             {details.length === 0 ? (
-              <p className="text-sm italic" style={{ color: "#6b5e52" }}>
-                Tidak ada informasi tambahan
-              </p>
+              <p className="text-sm italic" style={{ color: "#6b5e52" }}>Tidak ada informasi tambahan</p>
             ) : (
               details.map(([key, val]) => (
-                <div
-                  key={key}
-                  className="flex flex-col gap-0.5 p-2.5 rounded-lg"
-                  style={{ background: "rgba(255,255,255,0.03)" }}
-                  data-testid={`text-prop-${key}`}
-                >
-                  <span
-                    className="text-[10px] uppercase tracking-wider font-medium"
-                    style={{ color: "#6b5e52" }}
-                  >
+                <div key={key} className="flex flex-col gap-0.5 p-2.5 rounded-lg" style={{ background: "rgba(255,255,255,0.03)" }} data-testid={`text-prop-${key}`}>
+                  <span className="text-[10px] uppercase tracking-wider font-medium" style={{ color: "#6b5e52" }}>
                     {KEY_LABELS[key] || key}
                   </span>
                   <span className="text-sm" style={{ color: "#c8bfb2" }}>
@@ -135,9 +131,7 @@ export default function LocationPanel({ feature, category, onClose }: LocationPa
                         <Clock size={12} style={{ color: "#c0623a" }} />
                         {String(val)}
                       </span>
-                    ) : (
-                      String(val)
-                    )}
+                    ) : String(val)}
                   </span>
                 </div>
               ))
@@ -146,18 +140,10 @@ export default function LocationPanel({ feature, category, onClose }: LocationPa
         </div>
 
         {/* Footer */}
-        <div
-          className="px-4 py-3 flex-shrink-0"
-          style={{ borderTop: "1px solid rgba(255,255,255,0.06)" }}
-        >
+        <div className="px-4 py-3 flex-shrink-0" style={{ borderTop: "1px solid rgba(255,255,255,0.06)" }}>
           <div className="flex items-center gap-2">
-            <div
-              className="w-2 h-2 rounded-full"
-              style={{ background: config.color, boxShadow: `0 0 6px ${config.color}` }}
-            />
-            <span className="text-xs" style={{ color: "#6b5e52" }}>
-              Data dari OpenStreetMap
-            </span>
+            <div className="w-2 h-2 rounded-full" style={{ background: config.color, boxShadow: `0 0 6px ${config.color}` }} />
+            <span className="text-xs" style={{ color: "#6b5e52" }}>Data dari OpenStreetMap</span>
           </div>
         </div>
       </div>
