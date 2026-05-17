@@ -160,7 +160,7 @@ export default function SearchBar({ onSearch, onSelect, suggestions = [], result
             const isActive = i === activeIdx;
             return (
               <button
-                key={`${item.lat}-${item.lng}`}
+                key={`${item.lat}-${item.lng}-${item.name}`}
                 className="w-full flex items-center gap-2.5 px-3 py-2 text-left transition-colors"
                 style={{
                   background: isActive ? "rgba(192,98,58,0.12)" : "transparent",

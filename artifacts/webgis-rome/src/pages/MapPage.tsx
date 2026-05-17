@@ -11,12 +11,13 @@ import LayerControl, { LAYER_CONFIG, SUB_CATEGORIES, type LayerKey } from "@/com
 import LocationPanel from "@/components/LocationPanel";
 import BookmarkPanel, { type BookmarkItem } from "@/components/BookmarkPanel";
 import StatisticsPanel, { type CategoryStat } from "@/components/StatisticsPanel";
+import NearbyPanel, { type NearbyResult } from "@/components/NearbyPanel";
 import ChatPanel from "@/components/ChatPanel";
 import romeGeoJsonRaw from "@assets/rome_filtered.geojson?raw";
 import {
   MapPin, ZoomIn, ZoomOut, Locate, Download,
   Maximize2, Minimize2, Home, Share2, Star, Sun, Moon, Satellite,
-  Flame, BarChart2,
+  Flame, BarChart2, Target,
 } from "lucide-react";
 
 delete (L.Icon.Default.prototype as unknown as Record<string, unknown>)._getIconUrl;
@@ -125,6 +126,30 @@ function createGpsMarker(): L.DivIcon {
 const ROME_CENTER: [number, number] = [41.8875, 12.4892];
 const BOOKMARKS_KEY = "webgis_rome_bookmarks";
 
+function haversine(lat1: number, lng1: number, lat2: number, lng2: number): number {
+  const R = 6371000;
+  const φ1 = (lat1 * Math.PI) / 180, φ2 = (lat2 * Math.PI) / 180;
+  const Δφ = ((lat2 - lat1) * Math.PI) / 180, Δλ = ((lng2 - lng1) * Math.PI) / 180;
+  const a = Math.sin(Δφ / 2) ** 2 + Math.cos(φ1) * Math.cos(φ2) * Math.sin(Δλ / 2) ** 2;
+  return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+}
+
+function createCrosshairMarker(): L.DivIcon {
+  return L.divIcon({
+    html: `<svg width="28" height="28" viewBox="0 0 28 28" xmlns="http://www.w3.org/2000/svg">
+      <circle cx="14" cy="14" r="11" fill="rgba(192,98,58,0.15)" stroke="#c0623a" stroke-width="1.5" stroke-dasharray="4,3"/>
+      <circle cx="14" cy="14" r="4" fill="#c0623a"/>
+      <line x1="14" y1="2" x2="14" y2="8" stroke="#c0623a" stroke-width="1.5"/>
+      <line x1="14" y1="20" x2="14" y2="26" stroke="#c0623a" stroke-width="1.5"/>
+      <line x1="2" y1="14" x2="8" y2="14" stroke="#c0623a" stroke-width="1.5"/>
+      <line x1="20" y1="14" x2="26" y2="14" stroke="#c0623a" stroke-width="1.5"/>
+    </svg>`,
+    className: "",
+    iconSize: [28, 28],
+    iconAnchor: [14, 14],
+  });
+}
+
 interface MarkerEntry {
   marker: L.Marker;
   feature: GeoFeature;
@@ -152,6 +177,8 @@ export default function MapPage() {
   const gpsMarkerRef = useRef<L.Marker | null>(null);
   const heatLayerRef = useRef<L.HeatLayer | null>(null);
   const heatPointsRef = useRef<[number, number, number][]>([]);
+  const nearbyCircleRef = useRef<L.Circle | null>(null);
+  const nearbyCenterMarkerRef = useRef<L.Marker | null>(null);
 
   const [searchQuery, setSearchQuery] = useState("");
   const [layers, setLayers] = useState<Record<LayerKey, boolean>>({
@@ -177,6 +204,10 @@ export default function MapPage() {
   const [statsData, setStatsData] = useState<CategoryStat[]>([]);
   const [heatRevision, setHeatRevision] = useState(0);
   const [locationSuggestions, setLocationSuggestions] = useState<LocationSuggestion[]>([]);
+  const [nearbyMode, setNearbyMode] = useState(false);
+  const [nearbyCenter, setNearbyCenter] = useState<[number, number] | null>(null);
+  const [nearbyRadius, setNearbyRadius] = useState(500);
+  const [nearbyResults, setNearbyResults] = useState<NearbyResult[]>([]);
 
   // Init map
   useEffect(() => {
@@ -340,6 +371,57 @@ export default function MapPage() {
     }
   }, [showHeatmap, heatRevision]);
 
+  // Nearby mode — map click to set center
+  useEffect(() => {
+    if (!mapRef.current) return;
+    const map = mapRef.current;
+    if (!nearbyMode) return;
+    const handler = (e: L.LeafletMouseEvent) => setNearbyCenter([e.latlng.lat, e.latlng.lng]);
+    map.on("click", handler);
+    return () => { map.off("click", handler); };
+  }, [nearbyMode]);
+
+  // Nearby mode — recompute results + redraw circle when center/radius changes
+  useEffect(() => {
+    if (!mapRef.current) return;
+    // Remove old overlays
+    if (nearbyCircleRef.current) { mapRef.current.removeLayer(nearbyCircleRef.current); nearbyCircleRef.current = null; }
+    if (nearbyCenterMarkerRef.current) { mapRef.current.removeLayer(nearbyCenterMarkerRef.current); nearbyCenterMarkerRef.current = null; }
+    if (!nearbyCenter) { setNearbyResults([]); return; }
+    const [clat, clng] = nearbyCenter;
+    // Draw circle
+    nearbyCircleRef.current = L.circle([clat, clng], {
+      radius: nearbyRadius,
+      color: "#c0623a", fillColor: "#c0623a", fillOpacity: 0.07,
+      weight: 1.5, dashArray: "6,4",
+    }).addTo(mapRef.current);
+    // Draw center marker
+    nearbyCenterMarkerRef.current = L.marker([clat, clng], { icon: createCrosshairMarker(), zIndexOffset: 1000 }).addTo(mapRef.current);
+    // Fit circle in view
+    mapRef.current.flyToBounds(nearbyCircleRef.current.getBounds(), { animate: true, duration: 0.6, padding: [40, 40] });
+    // Compute results
+    const results: NearbyResult[] = markersRef.current
+      .map((e) => {
+        const [lng, lat] = e.feature.geometry.coordinates;
+        const distance = haversine(clat, clng, lat, lng);
+        return { id: `${lat}_${lng}`, name: String(e.feature.properties.name || "Tanpa Nama"), category: e.category, distance, lat, lng };
+      })
+      .filter((r) => r.distance <= nearbyRadius)
+      .sort((a, b) => a.distance - b.distance)
+      .slice(0, 60);
+    setNearbyResults(results);
+  }, [nearbyCenter, nearbyRadius]);
+
+  // Clean up nearby overlays when nearby mode is turned off
+  useEffect(() => {
+    if (!nearbyMode && mapRef.current) {
+      if (nearbyCircleRef.current) { mapRef.current.removeLayer(nearbyCircleRef.current); nearbyCircleRef.current = null; }
+      if (nearbyCenterMarkerRef.current) { mapRef.current.removeLayer(nearbyCenterMarkerRef.current); nearbyCenterMarkerRef.current = null; }
+      setNearbyCenter(null);
+      setNearbyResults([]);
+    }
+  }, [nearbyMode]);
+
   // --- Handlers ---
   const handleSearch = useCallback((q: string) => setSearchQuery(q), []);
 
@@ -450,13 +532,30 @@ export default function MapPage() {
       })
     : false;
 
+  const handleNearbySelect = useCallback((item: NearbyResult) => {
+    mapRef.current?.flyTo([item.lat, item.lng], 18, { animate: true, duration: 0.8 });
+    const entry = markersRef.current.find((e) => {
+      const [lng, lat] = e.feature.geometry.coordinates;
+      return Math.abs(lat - item.lat) < 0.00001 && Math.abs(lng - item.lng) < 0.00001;
+    });
+    if (entry) {
+      setSelectedFeature({ feature: entry.feature, category: entry.category });
+      setNearbyMode(false);
+    }
+  }, []);
+
   const handleZoomIn = useCallback(() => mapRef.current?.zoomIn(), []);
   const handleZoomOut = useCallback(() => mapRef.current?.zoomOut(), []);
 
   return (
     <div className="relative w-full h-screen overflow-hidden">
       {loading && <LoadingScreen onDone={() => setLoading(false)} />}
-      <div ref={mapContainerRef} className="absolute inset-0 z-0" data-testid="map-container" />
+      <div
+        ref={mapContainerRef}
+        className="absolute inset-0 z-0"
+        data-testid="map-container"
+        style={{ cursor: nearbyMode ? "crosshair" : undefined }}
+      />
 
       {!loading && (
         <>
@@ -516,7 +615,19 @@ export default function MapPage() {
             />
           )}
 
-          {selectedFeature && (
+          {/* NearbyPanel — shown when nearby mode is active */}
+          {nearbyMode && (
+            <NearbyPanel
+              results={nearbyResults}
+              radius={nearbyRadius}
+              onRadiusChange={setNearbyRadius}
+              onSelect={handleNearbySelect}
+              onClose={() => setNearbyMode(false)}
+            />
+          )}
+
+          {/* LocationPanel — hidden while nearby mode is active */}
+          {selectedFeature && !nearbyMode && (
             <LocationPanel
               feature={selectedFeature.feature}
               category={selectedFeature.category}
@@ -524,6 +635,25 @@ export default function MapPage() {
               isBookmarked={isCurrentBookmarked}
               onBookmark={handleBookmark}
             />
+          )}
+
+          {/* Nearby mode hint */}
+          {nearbyMode && !nearbyCenter && (
+            <div
+              className="absolute top-20 left-1/2 -translate-x-1/2 z-[1001] px-4 py-2.5 rounded-xl flex items-center gap-2"
+              style={{
+                background: "rgba(20,16,12,0.95)",
+                backdropFilter: "blur(14px)",
+                border: "1px solid rgba(192,98,58,0.4)",
+                boxShadow: "0 8px 24px rgba(0,0,0,0.6)",
+                color: "#e0d8cc",
+                animation: "fade-in-up 0.3s ease",
+              }}
+              data-testid="nearby-hint"
+            >
+              <Target size={14} style={{ color: "#c0623a", flexShrink: 0 }} />
+              <span className="text-xs">Klik titik mana saja di peta untuk mencari lokasi terdekat</span>
+            </div>
           )}
 
           <ChatPanel />
@@ -544,7 +674,7 @@ export default function MapPage() {
                 {icon}
               </button>
             ))}
-            {/* Heatmap toggle — highlighted when active */}
+            {/* Heatmap toggle */}
             <button
               onClick={() => setShowHeatmap((v) => !v)}
               title="Toggle Heatmap Kepadatan"
@@ -559,6 +689,23 @@ export default function MapPage() {
               }}
             >
               <Flame size={15} />
+            </button>
+
+            {/* Nearby search toggle */}
+            <button
+              onClick={() => setNearbyMode((v) => !v)}
+              title="Cari lokasi terdekat dari titik pilihan"
+              data-testid="button-nearby"
+              className="w-9 h-9 rounded-xl flex items-center justify-center transition-all"
+              style={{
+                background: nearbyMode ? "linear-gradient(135deg,#5b8fa888,#7c9e6a88)" : "rgba(20,16,12,0.9)",
+                backdropFilter: "blur(12px)",
+                border: nearbyMode ? "1px solid rgba(91,143,168,0.55)" : "1px solid rgba(255,255,255,0.08)",
+                boxShadow: nearbyMode ? "0 4px 14px rgba(91,143,168,0.35)" : "0 4px 12px rgba(0,0,0,0.5)",
+                color: nearbyMode ? "#c8f0ff" : "#c8bfb2",
+              }}
+            >
+              <Target size={15} />
             </button>
           </div>
 
