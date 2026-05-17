@@ -1,0 +1,4623 @@
+<!DOCTYPE html>
+<html lang="id">
+
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>WebGIS Rome - Restoran, Jalan, Wisata</title>
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
+    integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin="" />
+  <link rel="stylesheet" href="https://unpkg.com/leaflet.markercluster@1.5.3/dist/MarkerCluster.css" />
+  <link rel="stylesheet" href="https://unpkg.com/leaflet.markercluster@1.5.3/dist/MarkerCluster.Default.css" />
+  <style>
+    /* === SPLASH SCREEN === */
+    #splashScreen {
+      position: fixed;
+      inset: 0;
+      z-index: 9999;
+      background: linear-gradient(135deg, #0a0e1a 0%, #0f172a 40%, #1a103a 70%, #0d1b2a 100%);
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 0;
+      transition: opacity 0.7s ease, transform 0.7s ease;
+      overflow: hidden;
+    }
+
+    #splashScreen.fade-out {
+      opacity: 0;
+      transform: scale(1.04);
+      pointer-events: none;
+    }
+
+    #splashScreen.hidden {
+      display: none;
+    }
+
+    /* Stars canvas */
+    #splashStars {
+      position: absolute;
+      inset: 0;
+      pointer-events: none;
+    }
+
+    /* Glow ring */
+    .splash-glow-ring {
+      position: absolute;
+      width: 420px;
+      height: 420px;
+      border-radius: 50%;
+      background: radial-gradient(circle, rgba(99, 102, 241, 0.18) 0%, transparent 70%);
+      animation: splashPulse 2.8s ease-in-out infinite;
+      pointer-events: none;
+    }
+
+    @keyframes splashPulse {
+
+      0%,
+      100% {
+        transform: scale(1);
+        opacity: 0.6;
+      }
+
+      50% {
+        transform: scale(1.12);
+        opacity: 1;
+      }
+    }
+
+    /* Logo */
+    .splash-logo {
+      width: 140px;
+      height: 140px;
+      border-radius: 50%;
+      object-fit: cover;
+      border: 3px solid rgba(250, 210, 80, 0.7);
+      box-shadow: 0 0 40px rgba(250, 210, 80, 0.35), 0 0 80px rgba(99, 102, 241, 0.3);
+      animation: splashLogoIn 0.9s cubic-bezier(0.34, 1.56, 0.64, 1) 0.2s both;
+      position: relative;
+      z-index: 2;
+    }
+
+    @keyframes splashLogoIn {
+      from {
+        opacity: 0;
+        transform: scale(0.4) rotate(-15deg);
+      }
+
+      to {
+        opacity: 1;
+        transform: scale(1) rotate(0deg);
+      }
+    }
+
+    /* Italy flag stripe decoration */
+    .splash-flag {
+      display: flex;
+      gap: 0;
+      width: 120px;
+      height: 4px;
+      border-radius: 2px;
+      overflow: hidden;
+      margin-top: 14px;
+      margin-bottom: 18px;
+      animation: splashFlagIn 0.6s ease 0.8s both;
+      position: relative;
+      z-index: 2;
+    }
+
+    @keyframes splashFlagIn {
+      from {
+        opacity: 0;
+        transform: scaleX(0);
+      }
+
+      to {
+        opacity: 1;
+        transform: scaleX(1);
+      }
+    }
+
+    .flag-g {
+      flex: 1;
+      background: #009246;
+    }
+
+    .flag-w {
+      flex: 1;
+      background: #ffffff;
+    }
+
+    .flag-r {
+      flex: 1;
+      background: #ce2b37;
+    }
+
+    /* Welcome text */
+    .splash-welcome {
+      font-size: 13px;
+      font-weight: 600;
+      color: rgba(167, 139, 250, 0.9);
+      letter-spacing: 4px;
+      text-transform: uppercase;
+      animation: splashTextIn 0.7s ease 1s both;
+      position: relative;
+      z-index: 2;
+    }
+
+    .splash-title {
+      font-size: clamp(22px, 4vw, 34px);
+      font-weight: 900;
+      letter-spacing: 1px;
+      text-align: center;
+      line-height: 1.2;
+      position: relative;
+      z-index: 2;
+      animation: splashTextIn 0.7s ease 1.2s both;
+      background: linear-gradient(135deg, #fad250, #f8fafc 50%, #a78bfa);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+      padding: 0 20px;
+    }
+
+    .splash-sub {
+      margin-top: 8px;
+      font-size: 12px;
+      color: rgba(148, 163, 184, 0.8);
+      letter-spacing: 2px;
+      animation: splashTextIn 0.7s ease 1.4s both;
+      position: relative;
+      z-index: 2;
+    }
+
+    @keyframes splashTextIn {
+      from {
+        opacity: 0;
+        transform: translateY(18px);
+      }
+
+      to {
+        opacity: 1;
+        transform: translateY(0);
+      }
+    }
+
+    /* Progress bar */
+    .splash-progress-wrap {
+      margin-top: 32px;
+      width: 200px;
+      position: relative;
+      z-index: 2;
+      animation: splashTextIn 0.6s ease 1.6s both;
+    }
+
+    .splash-progress-track {
+      width: 100%;
+      height: 3px;
+      background: rgba(255, 255, 255, 0.1);
+      border-radius: 99px;
+      overflow: hidden;
+    }
+
+    .splash-progress-fill {
+      height: 100%;
+      border-radius: 99px;
+      background: linear-gradient(90deg, #6366f1, #a78bfa, #fad250);
+      animation: splashLoad 2.8s cubic-bezier(0.4, 0, 0.2, 1) 0.5s forwards;
+      width: 0%;
+    }
+
+    @keyframes splashLoad {
+      0% {
+        width: 0%;
+      }
+
+      60% {
+        width: 75%;
+      }
+
+      90% {
+        width: 92%;
+      }
+
+      100% {
+        width: 100%;
+      }
+    }
+
+    .splash-loading-text {
+      margin-top: 8px;
+      font-size: 10px;
+      color: rgba(148, 163, 184, 0.6);
+      letter-spacing: 1.5px;
+      text-align: center;
+      animation: splashBlink 1.2s ease-in-out infinite;
+    }
+
+    @keyframes splashBlink {
+
+      0%,
+      100% {
+        opacity: 0.5;
+      }
+
+      50% {
+        opacity: 1;
+      }
+    }
+
+    /* Skip button */
+    .splash-skip {
+      position: absolute;
+      bottom: 24px;
+      right: 24px;
+      border: 1px solid rgba(255, 255, 255, 0.2);
+      background: rgba(255, 255, 255, 0.05);
+      color: rgba(255, 255, 255, 0.5);
+      border-radius: 999px;
+      font-size: 11px;
+      padding: 6px 16px;
+      cursor: pointer;
+      z-index: 3;
+      transition: all 0.2s;
+      animation: splashTextIn 0.5s ease 2s both;
+    }
+
+    .splash-skip:hover {
+      background: rgba(255, 255, 255, 0.12);
+      color: #fff;
+    }
+
+    html,
+    body {
+      margin: 0;
+      padding: 0;
+      height: 100%;
+      font-family: "Segoe UI", Arial, sans-serif;
+    }
+
+    #map {
+      width: 100%;
+      height: 100%;
+    }
+
+    /* Coordinate bar */
+    #coordBar {
+      position: absolute;
+      bottom: 0;
+      left: 0;
+      right: 0;
+      z-index: 1050;
+      background: rgba(15, 23, 42, 0.72);
+      backdrop-filter: blur(6px);
+      color: #e2e8f0;
+      font-size: 11px;
+      font-family: "Consolas", monospace;
+      padding: 4px 14px;
+      display: flex;
+      align-items: center;
+      gap: 18px;
+      pointer-events: none;
+      letter-spacing: 0.3px;
+    }
+
+    #coordBar span {
+      opacity: 0.7;
+    }
+
+    #coordBar b {
+      opacity: 1;
+      color: #7dd3fc;
+    }
+
+    /* Floating action buttons (right side) */
+    .fab-col {
+      position: absolute;
+      z-index: 1100;
+      right: 12px;
+      bottom: 36px;
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+
+    .fab {
+      width: 40px;
+      height: 40px;
+      border-radius: 12px;
+      border: none;
+      background: rgba(255, 255, 255, 0.92);
+      backdrop-filter: blur(8px);
+      box-shadow: 0 4px 16px rgba(0, 0, 0, 0.14);
+      font-size: 18px;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: background 0.15s, transform 0.15s, box-shadow 0.15s;
+      title: attr(title);
+    }
+
+    .fab:hover {
+      background: #eff6ff;
+      transform: translateY(-2px);
+      box-shadow: 0 6px 20px rgba(0, 0, 0, 0.18);
+    }
+
+    .fab.active {
+      background: #dbeafe;
+      box-shadow: 0 4px 16px rgba(59, 130, 246, 0.3);
+    }
+
+    body.theme-dark .fab {
+      background: rgba(15, 23, 42, 0.88);
+      box-shadow: 0 4px 16px rgba(0, 0, 0, 0.4);
+    }
+
+    body.theme-dark .fab:hover {
+      background: #1e293b;
+    }
+
+    body.theme-dark .fab.active {
+      background: #1e3a8a;
+    }
+
+    body.theme-dark #coordBar {
+      background: rgba(2, 6, 23, 0.8);
+    }
+
+    .panel {
+      position: absolute;
+      z-index: 1100;
+      top: 12px;
+      left: 12px;
+      width: min(340px, calc(100vw - 24px));
+      background: rgba(255, 255, 255, 0.82);
+      backdrop-filter: blur(7px);
+      -webkit-backdrop-filter: blur(7px);
+      border: 1px solid rgba(255, 255, 255, 0.9);
+      padding: 12px;
+      border-radius: 14px;
+      box-shadow: 0 8px 24px rgba(0, 0, 0, 0.12);
+      font-size: 13px;
+      line-height: 1.3;
+      transition: width 0.2s ease, padding 0.2s ease;
+    }
+
+    .panel.collapsed {
+      width: 220px;
+      padding-bottom: 8px;
+    }
+
+    .panel.collapsed .panel-content {
+      display: none;
+    }
+
+    .panel-content {
+      max-height: calc(100vh - 110px);
+      overflow-y: auto;
+      overflow-x: hidden;
+      padding-right: 2px;
+    }
+
+    .panel-scroll {
+      padding-bottom: 8px;
+    }
+
+    /* === FLOATING FILTER PANEL === */
+    .filter-panel {
+      position: absolute;
+      z-index: 1100;
+      top: 12px;
+      right: 12px;
+      width: 270px;
+      background: rgba(255, 255, 255, 0.92);
+      backdrop-filter: blur(10px);
+      -webkit-backdrop-filter: blur(10px);
+      border: 1px solid rgba(255, 255, 255, 0.9);
+      border-radius: 16px;
+      box-shadow: 0 8px 32px rgba(0, 0, 0, 0.14);
+      font-size: 13px;
+      overflow: hidden;
+      transition: transform 0.25s cubic-bezier(0.4, 0, 0.2, 1),
+        opacity 0.25s ease,
+        box-shadow 0.2s ease;
+    }
+
+    .filter-panel.hidden {
+      transform: translateX(calc(100% + 20px));
+      opacity: 0;
+      pointer-events: none;
+    }
+
+    .filter-panel-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 10px 14px;
+      background: linear-gradient(135deg, #1e40af, #3b82f6);
+      color: #ffffff;
+    }
+
+    .filter-panel-title {
+      font-size: 13px;
+      font-weight: 700;
+      letter-spacing: 0.3px;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .filter-panel-close {
+      border: none;
+      background: rgba(255, 255, 255, 0.2);
+      color: #fff;
+      border-radius: 8px;
+      width: 24px;
+      height: 24px;
+      font-size: 14px;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      line-height: 1;
+      transition: background 0.15s;
+    }
+
+    .filter-panel-close:hover {
+      background: rgba(255, 255, 255, 0.35);
+    }
+
+    .filter-panel-body {
+      padding: 12px 14px 14px;
+    }
+
+    .filter-panel-body .filter-title {
+      font-size: 10px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.6px;
+      color: #64748b;
+      margin-bottom: 6px;
+    }
+
+    .filter-panel-body .filter-input,
+    .filter-panel-body .filter-select {
+      width: 100%;
+      border: 1px solid #e2e8f0;
+      border-radius: 10px;
+      padding: 8px 10px;
+      font-size: 12px;
+      background: #f8fafc;
+      color: #111827;
+      box-sizing: border-box;
+      transition: border-color 0.15s, box-shadow 0.15s;
+    }
+
+    .filter-panel-body .filter-input:focus,
+    .filter-panel-body .filter-select:focus {
+      outline: none;
+      border-color: #3b82f6;
+      box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.15);
+      background: #ffffff;
+    }
+
+    .filter-panel-body .filter-section {
+      margin-bottom: 10px;
+    }
+
+    .filter-panel-body .filter-actions {
+      display: flex;
+      gap: 8px;
+      margin-top: 12px;
+    }
+
+    .filter-apply-btn {
+      flex: 1;
+      border: none;
+      border-radius: 10px;
+      background: linear-gradient(135deg, #1e40af, #3b82f6);
+      color: #ffffff;
+      font-size: 12px;
+      font-weight: 700;
+      padding: 9px 10px;
+      cursor: pointer;
+      transition: opacity 0.15s, transform 0.15s;
+    }
+
+    .filter-apply-btn:hover {
+      opacity: 0.9;
+      transform: translateY(-1px);
+    }
+
+    .filter-reset-btn2 {
+      border: 1px solid #e2e8f0;
+      border-radius: 10px;
+      background: #ffffff;
+      color: #475569;
+      font-size: 12px;
+      font-weight: 700;
+      padding: 9px 12px;
+      cursor: pointer;
+      transition: background 0.15s;
+    }
+
+    .filter-reset-btn2:hover {
+      background: #f1f5f9;
+    }
+
+    /* Filter toggle button in main panel */
+    .filter-toggle-btn {
+      border: 1px solid #bfdbfe;
+      border-radius: 8px;
+      background: #eff6ff;
+      color: #1d4ed8;
+      font-size: 11px;
+      font-weight: 700;
+      padding: 4px 8px;
+      cursor: pointer;
+      transition: background 0.15s;
+      display: flex;
+      align-items: center;
+      gap: 4px;
+    }
+
+    .filter-toggle-btn:hover {
+      background: #dbeafe;
+    }
+
+    .panel-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 10px;
+    }
+
+    .panel-title {
+      font-size: 15px;
+      font-weight: 700;
+      color: #1f2937;
+    }
+
+    .panel-subtitle {
+      font-size: 11px;
+      color: #6b7280;
+      margin-top: 2px;
+    }
+
+    .tag {
+      background: #ecfeff;
+      color: #0e7490;
+      border: 1px solid #a5f3fc;
+      border-radius: 999px;
+      font-size: 10px;
+      font-weight: 700;
+      padding: 2px 8px;
+    }
+
+    .filter-badge {
+      background: #fff7ed;
+      color: #c2410c;
+      border: 1px solid #fdba74;
+      border-radius: 999px;
+      font-size: 10px;
+      font-weight: 700;
+      padding: 2px 8px;
+    }
+
+    .icon-btn {
+      border: 1px solid #d1d5db;
+      border-radius: 8px;
+      background: #ffffff;
+      color: #1f2937;
+      font-size: 12px;
+      font-weight: 700;
+      padding: 4px 8px;
+      cursor: pointer;
+    }
+
+    .icon-btn:hover {
+      background: #f8fafc;
+    }
+
+    .controls-row {
+      display: flex;
+      gap: 8px;
+      align-items: center;
+      margin-bottom: 8px;
+      flex-wrap: wrap;
+    }
+
+    .search-row {
+      display: flex;
+      gap: 6px;
+      margin-bottom: 8px;
+      position: relative;
+    }
+
+    .search-input-wrap {
+      flex: 1;
+      position: relative;
+    }
+
+    .search-input {
+      width: 100%;
+      border: 1px solid #d1d5db;
+      border-radius: 10px;
+      padding: 8px 10px;
+      font-size: 12px;
+      outline: none;
+      background: #ffffff;
+      color: #111827;
+      box-sizing: border-box;
+      transition: border-radius 0.15s;
+    }
+
+    .search-input:focus {
+      border-color: #3b82f6;
+      box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.15);
+    }
+
+    .search-input.suggestions-open {
+      border-bottom-left-radius: 0;
+      border-bottom-right-radius: 0;
+    }
+
+    .search-suggestions {
+      position: absolute;
+      top: 100%;
+      left: 0;
+      right: 0;
+      background: #ffffff;
+      border: 1px solid #3b82f6;
+      border-top: none;
+      border-bottom-left-radius: 10px;
+      border-bottom-right-radius: 10px;
+      box-shadow: 0 8px 24px rgba(59, 130, 246, 0.18);
+      z-index: 2000;
+      overflow: hidden;
+      display: none;
+      animation: suggFadeIn 0.15s ease;
+    }
+
+    .search-suggestions.visible {
+      display: block;
+    }
+
+    @keyframes suggFadeIn {
+      from {
+        opacity: 0;
+        transform: translateY(-4px);
+      }
+
+      to {
+        opacity: 1;
+        transform: translateY(0);
+      }
+    }
+
+    .sugg-item {
+      display: flex;
+      align-items: flex-start;
+      gap: 8px;
+      padding: 8px 10px;
+      cursor: pointer;
+      border-bottom: 1px solid #f1f5f9;
+      transition: background 0.12s;
+    }
+
+    .sugg-item:last-child {
+      border-bottom: none;
+    }
+
+    .sugg-item:hover,
+    .sugg-item.highlighted {
+      background: #eff6ff;
+    }
+
+    .sugg-icon {
+      font-size: 15px;
+      flex-shrink: 0;
+      margin-top: 1px;
+    }
+
+    .sugg-text {
+      flex: 1;
+      min-width: 0;
+    }
+
+    .sugg-name {
+      font-size: 12px;
+      font-weight: 700;
+      color: #111827;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .sugg-detail {
+      font-size: 10px;
+      color: #64748b;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .sugg-loading {
+      padding: 10px;
+      text-align: center;
+      font-size: 11px;
+      color: #64748b;
+    }
+
+    .sugg-empty {
+      padding: 10px;
+      text-align: center;
+      font-size: 11px;
+      color: #94a3b8;
+    }
+
+    .search-btn {
+      border: 0;
+      border-radius: 10px;
+      background: #0f172a;
+      color: #ffffff;
+      font-size: 12px;
+      font-weight: 700;
+      padding: 8px 10px;
+      cursor: pointer;
+    }
+
+    /* Dark mode autocomplete */
+    body.theme-dark .search-suggestions {
+      background: #0f172a;
+      border-color: #3b82f6;
+      box-shadow: 0 8px 24px rgba(0, 0, 0, 0.45);
+    }
+
+    body.theme-dark .sugg-item {
+      border-bottom-color: #1e293b;
+    }
+
+    body.theme-dark .sugg-item:hover,
+    body.theme-dark .sugg-item.highlighted {
+      background: #1e3a8a;
+    }
+
+    body.theme-dark .sugg-name {
+      color: #f8fafc;
+    }
+
+    body.theme-dark .sugg-detail {
+      color: #94a3b8;
+    }
+
+    body.theme-dark .sugg-loading,
+    body.theme-dark .sugg-empty {
+      color: #64748b;
+    }
+
+    .map-style-row {
+      display: flex;
+      gap: 6px;
+      margin-bottom: 8px;
+      flex-wrap: wrap;
+    }
+
+    .map-style-btn {
+      border: 1px solid #d1d5db;
+      background: #ffffff;
+      color: #1f2937;
+      border-radius: 999px;
+      font-size: 11px;
+      font-weight: 700;
+      padding: 5px 10px;
+      cursor: pointer;
+    }
+
+    .map-style-btn.active {
+      background: #dbeafe;
+      border-color: #93c5fd;
+      color: #1d4ed8;
+    }
+
+    .filter-divider {
+      margin: 10px 0 8px;
+      border: none;
+      border-top: 1px solid #e5e7eb;
+    }
+
+    .filter-card {
+      margin-top: 0;
+      margin-bottom: 2px;
+      padding: 10px;
+      border: 1px solid #e5e7eb;
+      border-radius: 10px;
+      background: #f8fafc;
+    }
+
+    .filter-section {
+      margin-bottom: 0;
+    }
+
+    .filter-title {
+      font-size: 11px;
+      font-weight: 700;
+      color: #334155;
+      margin-bottom: 6px;
+    }
+
+    .filter-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 6px;
+      margin-top: 6px;
+    }
+
+    .filter-input,
+    .filter-select {
+      width: 100%;
+      border: 1px solid #d1d5db;
+      border-radius: 8px;
+      padding: 6px 8px;
+      font-size: 12px;
+      background: #ffffff;
+      color: #111827;
+      box-sizing: border-box;
+    }
+
+    .filter-actions {
+      display: flex;
+      gap: 6px;
+      margin-top: 8px;
+    }
+
+    .filter-reset-btn {
+      border: 1px solid #d1d5db;
+      border-radius: 8px;
+      background: #ffffff;
+      color: #1f2937;
+      font-size: 12px;
+      font-weight: 700;
+      padding: 6px 10px;
+      cursor: pointer;
+    }
+
+    .btn {
+      border: 0;
+      border-radius: 10px;
+      background: linear-gradient(135deg, #1e88e5, #3b82f6);
+      color: white;
+      font-weight: 600;
+      padding: 8px 12px;
+      cursor: pointer;
+      transition: transform 0.15s ease, opacity 0.2s ease;
+    }
+
+    .btn:hover {
+      transform: translateY(-1px);
+    }
+
+    .btn:disabled {
+      opacity: 0.65;
+      cursor: not-allowed;
+      transform: none;
+    }
+
+    .status {
+      font-size: 12px;
+      color: #334155;
+      background: #f8fafc;
+      border: 1px solid #e2e8f0;
+      border-radius: 999px;
+      padding: 4px 8px;
+    }
+
+    .stats-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 6px;
+      margin-top: 10px;
+      margin-bottom: 10px;
+    }
+
+    .stat-item {
+      background: #ffffff;
+      border: 1px solid #e5e7eb;
+      border-radius: 10px;
+      padding: 6px 8px;
+    }
+
+    .stat-label {
+      font-size: 11px;
+      color: #64748b;
+    }
+
+    .stat-value {
+      font-size: 14px;
+      font-weight: 700;
+      color: #111827;
+    }
+
+    .helper-text {
+      font-size: 11px;
+      color: #64748b;
+      margin-bottom: 6px;
+    }
+
+    .file-input {
+      width: 100%;
+      font-size: 12px;
+    }
+
+    .theme-btn {
+      border: 1px solid #d1d5db;
+      border-radius: 8px;
+      padding: 4px 8px;
+      background: #ffffff;
+      color: #1f2937;
+      font-size: 11px;
+      cursor: pointer;
+    }
+
+    .theme-btn:hover {
+      background: #f8fafc;
+    }
+
+    .legend {
+      background: rgba(255, 255, 255, 0.92);
+      backdrop-filter: blur(6px);
+      -webkit-backdrop-filter: blur(6px);
+      border: 1px solid #e5e7eb;
+      padding: 10px 12px;
+      border-radius: 12px;
+      box-shadow: 0 8px 20px rgba(15, 23, 42, 0.18);
+      line-height: 1.45;
+      font-size: 12px;
+    }
+
+    .legend-title {
+      font-weight: 700;
+      margin-bottom: 6px;
+      color: #0f172a;
+    }
+
+    .legend-item {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      margin: 4px 0;
+      color: #334155;
+    }
+
+    .legend-dot {
+      width: 11px;
+      height: 11px;
+      border-radius: 999px;
+      flex: 0 0 11px;
+    }
+
+    .legend-dot.restaurant {
+      background: #e53935;
+    }
+
+    .legend-dot.road {
+      background: #1e88e5;
+    }
+
+    .legend-dot.tourism {
+      background: #43a047;
+    }
+
+    .leaflet-control-layers {
+      border: 1px solid #dbe2ea !important;
+      border-radius: 12px !important;
+      box-shadow: 0 8px 20px rgba(15, 23, 42, 0.18) !important;
+      overflow: hidden;
+    }
+
+    .leaflet-control-layers-expanded {
+      background: rgba(255, 255, 255, 0.95);
+      backdrop-filter: blur(6px);
+      -webkit-backdrop-filter: blur(6px);
+      min-width: 205px;
+      padding: 10px 12px !important;
+      color: #0f172a;
+    }
+
+    .leaflet-control-layers-separator {
+      margin: 8px 0 !important;
+      border-top: 1px dashed #cbd5e1 !important;
+    }
+
+    .leaflet-control-layers label {
+      margin: 4px 0;
+      font-size: 13px;
+    }
+
+    .leaflet-control-layers-base span,
+    .leaflet-control-layers-overlays span {
+      font-weight: 600;
+      color: #1f2937;
+    }
+
+    .progress-wrap {
+      margin-top: 8px;
+    }
+
+    .progress-bar {
+      width: 100%;
+      height: 8px;
+      background: #e9ecef;
+      border-radius: 999px;
+      overflow: hidden;
+    }
+
+    .progress-fill {
+      width: 0%;
+      height: 100%;
+      background: linear-gradient(90deg, #1e88e5, #42a5f5);
+      transition: width 0.25s ease;
+    }
+
+    .progress-label {
+      margin-top: 4px;
+      font-size: 11px;
+      color: #444;
+    }
+
+    /* Dark theme for inline filter card */
+    body.theme-dark .filter-divider {
+      border-top-color: #334155;
+    }
+
+    body.theme-dark .filter-card {
+      background: rgba(30, 41, 59, 0.85);
+      border-color: #334155;
+    }
+
+    body.theme-dark .filter-title {
+      color: #94a3b8;
+    }
+
+    body.theme-dark .filter-reset-btn2 {
+      background: #1e293b;
+      color: #cbd5e1;
+      border-color: #334155;
+    }
+
+    body.theme-dark .filter-reset-btn2:hover {
+      background: #334155;
+    }
+
+    body.theme-dark .panel {
+      background: rgba(17, 24, 39, 0.82);
+      border: 1px solid rgba(71, 85, 105, 0.9);
+      box-shadow: 0 10px 28px rgba(0, 0, 0, 0.35);
+      color: #e5e7eb;
+    }
+
+    body.theme-dark .panel-title {
+      color: #f8fafc;
+    }
+
+    body.theme-dark .panel-subtitle,
+    body.theme-dark .helper-text,
+    body.theme-dark .stat-label,
+    body.theme-dark .progress-label {
+      color: #cbd5e1;
+    }
+
+    body.theme-dark .status {
+      color: #e2e8f0;
+      background: #0f172a;
+      border-color: #334155;
+    }
+
+    body.theme-dark .stat-item {
+      background: rgba(30, 41, 59, 0.85);
+      border-color: #334155;
+    }
+
+    body.theme-dark .stat-value {
+      color: #f8fafc;
+    }
+
+    body.theme-dark .progress-bar {
+      background: #334155;
+    }
+
+    body.theme-dark .theme-btn {
+      background: #0f172a;
+      color: #e2e8f0;
+      border-color: #334155;
+    }
+
+    body.theme-dark .theme-btn:hover {
+      background: #1e293b;
+    }
+
+    body.theme-dark .filter-badge {
+      background: #7c2d12;
+      color: #ffedd5;
+      border-color: #c2410c;
+    }
+
+    body.theme-dark .icon-btn {
+      background: #0f172a;
+      color: #e2e8f0;
+      border-color: #334155;
+    }
+
+    body.theme-dark .icon-btn:hover {
+      background: #1e293b;
+    }
+
+    body.theme-dark .search-input {
+      background: #0f172a;
+      color: #e2e8f0;
+      border-color: #334155;
+    }
+
+    body.theme-dark .search-btn {
+      background: #334155;
+      color: #e2e8f0;
+    }
+
+    body.theme-dark .map-style-btn {
+      background: #0f172a;
+      color: #cbd5e1;
+      border-color: #334155;
+    }
+
+    body.theme-dark .map-style-btn.active {
+      background: #1e3a8a;
+      border-color: #1d4ed8;
+      color: #dbeafe;
+    }
+
+    body.theme-dark .filter-card {
+      background: rgba(30, 41, 59, 0.8);
+      border-color: #334155;
+    }
+
+    body.theme-dark .panel-footer-filter {
+      background: linear-gradient(to top, rgba(15, 23, 42, 0.98) 75%, rgba(15, 23, 42, 0));
+    }
+
+    body.theme-dark .filter-title {
+      color: #cbd5e1;
+    }
+
+    body.theme-dark .filter-input,
+    body.theme-dark .filter-select,
+    body.theme-dark .filter-reset-btn {
+      background: #0f172a;
+      color: #e2e8f0;
+      border-color: #334155;
+    }
+
+    body.theme-dark .file-input {
+      color: #e2e8f0;
+    }
+
+    body.theme-dark .legend {
+      background: rgba(15, 23, 42, 0.9);
+      color: #e2e8f0;
+      box-shadow: 0 4px 14px rgba(0, 0, 0, 0.35);
+      border-color: #334155;
+    }
+
+    body.theme-dark .legend-title {
+      color: #f8fafc;
+    }
+
+    body.theme-dark .legend-item {
+      color: #cbd5e1;
+    }
+
+    body.theme-dark .leaflet-control-layers {
+      border-color: #334155 !important;
+      box-shadow: 0 8px 20px rgba(0, 0, 0, 0.45) !important;
+    }
+
+    body.theme-dark .leaflet-control-layers-expanded {
+      background: rgba(15, 23, 42, 0.95);
+      color: #e2e8f0;
+    }
+
+    body.theme-dark .leaflet-control-layers-base span,
+    body.theme-dark .leaflet-control-layers-overlays span {
+      color: #e2e8f0;
+    }
+
+    body.theme-dark .leaflet-control-layers-separator {
+      border-top-color: #334155 !important;
+    }
+
+    .leaflet-popup-content-wrapper {
+      border-radius: 14px;
+      padding: 0;
+      overflow: hidden;
+    }
+
+    .leaflet-popup-content {
+      margin: 0;
+      min-width: 230px;
+    }
+
+    .info-card {
+      font-size: 12px;
+      color: #1f2937;
+    }
+
+    .info-head {
+      padding: 8px 10px;
+      color: #ffffff;
+      font-weight: 700;
+      font-size: 12px;
+      letter-spacing: 0.2px;
+    }
+
+    .info-head-restaurant {
+      background: linear-gradient(135deg, #ef5350, #e53935);
+    }
+
+    .info-head-road {
+      background: linear-gradient(135deg, #42a5f5, #1e88e5);
+    }
+
+    .info-head-tourism {
+      background: linear-gradient(135deg, #66bb6a, #43a047);
+    }
+
+    .info-body {
+      padding: 9px 10px;
+      background: #ffffff;
+    }
+
+    .info-media {
+      height: 110px;
+      border-radius: 8px;
+      margin-bottom: 8px;
+      overflow: hidden;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 26px;
+      font-weight: 700;
+      color: #ffffff;
+      text-shadow: 0 1px 2px rgba(0, 0, 0, 0.25);
+    }
+
+    .info-media img {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+      display: block;
+    }
+
+    .media-restaurant {
+      background: linear-gradient(135deg, #ff8a80, #e53935);
+    }
+
+    .media-road {
+      background: linear-gradient(135deg, #64b5f6, #1e88e5);
+    }
+
+    .media-tourism {
+      background: linear-gradient(135deg, #81c784, #43a047);
+    }
+
+    .info-row {
+      display: flex;
+      justify-content: space-between;
+      gap: 8px;
+      padding: 4px 0;
+      border-bottom: 1px dashed #e5e7eb;
+    }
+
+    .info-row:last-child {
+      border-bottom: none;
+      padding-bottom: 0;
+    }
+
+    .info-key {
+      color: #64748b;
+      font-weight: 600;
+    }
+
+    .info-val {
+      color: #111827;
+      text-align: right;
+      max-width: 58%;
+      word-break: break-word;
+    }
+
+    .info-link-wrap {
+      margin-top: 8px;
+      display: flex;
+      gap: 6px;
+      flex-wrap: wrap;
+    }
+
+    .info-link-btn {
+      text-decoration: none;
+      font-size: 11px;
+      font-weight: 700;
+      padding: 4px 8px;
+      border-radius: 999px;
+      background: #eff6ff;
+      color: #1d4ed8;
+      border: 1px solid #bfdbfe;
+    }
+
+    .info-link-btn:hover {
+      background: #dbeafe;
+    }
+
+    body.theme-dark .info-body {
+      background: #0f172a;
+    }
+
+    body.theme-dark .info-row {
+      border-bottom-color: #334155;
+    }
+
+    body.theme-dark .info-key {
+      color: #cbd5e1;
+    }
+
+    body.theme-dark .info-val {
+      color: #f8fafc;
+    }
+
+    body.theme-dark .info-link-btn {
+      background: #172554;
+      color: #bfdbfe;
+      border-color: #1e3a8a;
+    }
+
+    body.theme-dark .info-link-btn:hover {
+      background: #1e3a8a;
+    }
+
+    /* === TOURISM FREQUENCY CHART === */
+    .tourism-freq-card {
+      margin-top: 8px;
+      padding: 10px 12px;
+      border: 1px solid #bbf7d0;
+      border-radius: 12px;
+      background: linear-gradient(135deg, #f0fdf4, #ecfdf5);
+    }
+
+    .tourism-freq-title {
+      font-size: 10px;
+      font-weight: 700;
+      color: #15803d;
+      margin-bottom: 10px;
+      text-transform: uppercase;
+      letter-spacing: 0.6px;
+    }
+
+    .tourism-freq-wrap {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      margin-bottom: 10px;
+    }
+
+    .donut-wrap {
+      position: relative;
+      flex-shrink: 0;
+      width: 90px;
+      height: 90px;
+    }
+
+    .donut-wrap svg {
+      display: block;
+    }
+
+    .donut-center {
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      text-align: center;
+      line-height: 1.2;
+    }
+
+    .donut-center-pct {
+      font-size: 15px;
+      font-weight: 800;
+      color: #15803d;
+      display: block;
+    }
+
+    .donut-center-lbl {
+      font-size: 8px;
+      color: #64748b;
+      display: block;
+    }
+
+    .freq-legend {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+
+    .freq-legend-item {
+      display: flex;
+      align-items: center;
+      gap: 7px;
+    }
+
+    .freq-dot {
+      width: 10px;
+      height: 10px;
+      border-radius: 50%;
+      flex-shrink: 0;
+    }
+
+    .freq-dot.frequent {
+      background: #43a047;
+    }
+
+    .freq-dot.rare {
+      background: #f97316;
+    }
+
+    .freq-legend-label {
+      font-size: 10px;
+      color: #374151;
+      font-weight: 600;
+    }
+
+    .freq-legend-pct {
+      font-size: 13px;
+      font-weight: 800;
+      color: #111827;
+    }
+
+    .freq-legend-count {
+      font-size: 10px;
+      color: #9ca3af;
+    }
+
+    .freq-bars {
+      display: flex;
+      flex-direction: column;
+      gap: 5px;
+    }
+
+    .freq-bar-row {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .freq-bar-label {
+      font-size: 9px;
+      color: #64748b;
+      min-width: 48px;
+    }
+
+    .freq-bar-track {
+      flex: 1;
+      height: 7px;
+      background: #e5e7eb;
+      border-radius: 999px;
+      overflow: hidden;
+    }
+
+    .freq-bar-fill {
+      height: 100%;
+      border-radius: 999px;
+      transition: width 0.9s cubic-bezier(0.4, 0, 0.2, 1);
+      width: 0%;
+    }
+
+    .freq-bar-fill.frequent {
+      background: linear-gradient(90deg, #43a047, #66bb6a);
+    }
+
+    .freq-bar-fill.rare {
+      background: linear-gradient(90deg, #f97316, #fb923c);
+    }
+
+    .freq-bar-pct {
+      font-size: 10px;
+      font-weight: 700;
+      color: #374151;
+      min-width: 28px;
+      text-align: right;
+    }
+
+    /* dark mode tourism freq */
+    body.theme-dark .tourism-freq-card {
+      background: rgba(20, 83, 45, 0.25);
+      border-color: #166534;
+    }
+
+    body.theme-dark .tourism-freq-title {
+      color: #4ade80;
+    }
+
+    body.theme-dark .freq-legend-label {
+      color: #cbd5e1;
+    }
+
+    body.theme-dark .freq-legend-pct {
+      color: #f8fafc;
+    }
+
+    body.theme-dark .freq-legend-count {
+      color: #64748b;
+    }
+
+    body.theme-dark .freq-bar-track {
+      background: #334155;
+    }
+
+    body.theme-dark .freq-bar-label {
+      color: #94a3b8;
+    }
+
+    body.theme-dark .freq-bar-pct {
+      color: #cbd5e1;
+    }
+
+    body.theme-dark .donut-center-pct {
+      color: #4ade80;
+    }
+
+    body.theme-dark .donut-center-lbl {
+      color: #64748b;
+    }
+
+    /* === GPS ROUTE PANEL === */
+    .route-card {
+      margin-top: 8px;
+      border: 1px solid #bfdbfe;
+      border-radius: 12px;
+      overflow: hidden;
+    }
+
+    .route-card-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 8px 10px;
+      background: linear-gradient(135deg, #7c3aed, #6366f1);
+      cursor: pointer;
+      user-select: none;
+    }
+
+    .route-card-title {
+      font-size: 11px;
+      font-weight: 700;
+      color: #fff;
+      display: flex;
+      align-items: center;
+      gap: 5px;
+    }
+
+    .route-card-icon {
+      font-size: 11px;
+      color: rgba(255, 255, 255, 0.8);
+      transition: transform 0.2s;
+    }
+
+    .route-card-icon.open {
+      transform: rotate(180deg);
+    }
+
+    .route-card-body {
+      display: none;
+      padding: 10px;
+      background: #fff;
+    }
+
+    .route-card-body.open {
+      display: block;
+    }
+
+    .route-input {
+      width: 100%;
+      border: 1px solid #e2e8f0;
+      border-radius: 8px;
+      padding: 6px 8px;
+      font-size: 11px;
+      color: #111827;
+      background: #f8fafc;
+      box-sizing: border-box;
+      margin-bottom: 6px;
+      outline: none;
+    }
+
+    .route-input:focus {
+      border-color: #6366f1;
+      box-shadow: 0 0 0 2px rgba(99, 102, 241, 0.15);
+    }
+
+    .route-btn-row {
+      display: flex;
+      gap: 6px;
+      margin-top: 4px;
+    }
+
+    .route-go-btn {
+      flex: 1;
+      border: none;
+      border-radius: 8px;
+      background: linear-gradient(135deg, #7c3aed, #6366f1);
+      color: #fff;
+      font-size: 11px;
+      font-weight: 700;
+      padding: 7px 10px;
+      cursor: pointer;
+      transition: opacity 0.15s, transform 0.15s;
+    }
+
+    .route-go-btn:hover {
+      opacity: 0.88;
+      transform: translateY(-1px);
+    }
+
+    .route-clear-btn {
+      border: 1px solid #e2e8f0;
+      border-radius: 8px;
+      background: #f8fafc;
+      color: #475569;
+      font-size: 11px;
+      font-weight: 700;
+      padding: 7px 10px;
+      cursor: pointer;
+    }
+
+    .route-clear-btn:hover {
+      background: #e2e8f0;
+    }
+
+    .route-gmaps-btn {
+      display: none;
+      width: 100%;
+      border: none;
+      border-radius: 8px;
+      background: #1a73e8;
+      color: #fff;
+      font-size: 11px;
+      font-weight: 700;
+      padding: 7px 10px;
+      cursor: pointer;
+      margin-top: 6px;
+      text-align: center;
+      text-decoration: none;
+    }
+
+    .route-gmaps-btn:hover {
+      background: #1558b0;
+    }
+
+    .route-info-box {
+      display: none;
+      margin-top: 8px;
+      padding: 8px 10px;
+      background: linear-gradient(135deg, #ede9fe, #eef2ff);
+      border: 1px solid #c4b5fd;
+      border-radius: 8px;
+      font-size: 11px;
+      color: #3730a3;
+    }
+
+    .route-info-box.visible {
+      display: block;
+    }
+
+    .route-info-row {
+      display: flex;
+      justify-content: space-between;
+      margin-bottom: 3px;
+    }
+
+    .route-info-row:last-child {
+      margin-bottom: 0;
+    }
+
+    .route-info-key {
+      font-weight: 600;
+      color: #6d28d9;
+    }
+
+    .route-info-val {
+      font-weight: 700;
+      color: #1e1b4b;
+    }
+
+    /* dark */
+    body.theme-dark .route-card {
+      border-color: #4c1d95;
+    }
+
+    body.theme-dark .route-card-body {
+      background: #0f172a;
+    }
+
+    body.theme-dark .route-input {
+      background: #1e293b;
+      color: #e2e8f0;
+      border-color: #334155;
+    }
+
+    body.theme-dark .route-clear-btn {
+      background: #1e293b;
+      color: #94a3b8;
+      border-color: #334155;
+    }
+
+    body.theme-dark .route-info-box {
+      background: rgba(109, 40, 217, 0.2);
+      border-color: #5b21b6;
+      color: #c4b5fd;
+    }
+
+    body.theme-dark .route-info-key {
+      color: #a78bfa;
+    }
+
+    body.theme-dark .route-info-val {
+      color: #ede9fe;
+    }
+
+    /* === PLACE NAME LIST CARD === */
+    .place-list-card {
+      margin-top: 8px;
+      border: 1px solid #e5e7eb;
+      border-radius: 12px;
+      overflow: hidden;
+    }
+
+    .place-list-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 8px 10px;
+      background: linear-gradient(135deg, #1e40af, #3b82f6);
+      cursor: pointer;
+      user-select: none;
+    }
+
+    .place-list-header-title {
+      font-size: 11px;
+      font-weight: 700;
+      color: #fff;
+      display: flex;
+      align-items: center;
+      gap: 5px;
+    }
+
+    .place-list-toggle-icon {
+      font-size: 11px;
+      color: rgba(255, 255, 255, 0.8);
+      transition: transform 0.2s;
+    }
+
+    .place-list-toggle-icon.open {
+      transform: rotate(180deg);
+    }
+
+    .place-list-body {
+      display: none;
+      padding: 8px 10px 10px;
+      background: #fff;
+    }
+
+    .place-list-body.open {
+      display: block;
+    }
+
+    .place-tab-row {
+      display: flex;
+      gap: 4px;
+      margin-bottom: 8px;
+    }
+
+    .place-tab-btn {
+      flex: 1;
+      border: 1px solid #e2e8f0;
+      border-radius: 8px;
+      background: #f8fafc;
+      color: #475569;
+      font-size: 11px;
+      font-weight: 700;
+      padding: 5px 4px;
+      cursor: pointer;
+      transition: all 0.15s;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 4px;
+    }
+
+    .place-tab-btn.active-frequent {
+      background: #dcfce7;
+      border-color: #86efac;
+      color: #15803d;
+    }
+
+    .place-tab-btn.active-rare {
+      background: #fff7ed;
+      border-color: #fdba74;
+      color: #c2410c;
+    }
+
+    .place-search-input {
+      width: 100%;
+      border: 1px solid #e2e8f0;
+      border-radius: 8px;
+      padding: 5px 8px;
+      font-size: 11px;
+      color: #111827;
+      background: #f8fafc;
+      box-sizing: border-box;
+      margin-bottom: 6px;
+      outline: none;
+    }
+
+    .place-search-input:focus {
+      border-color: #3b82f6;
+    }
+
+    .place-list-scroll {
+      max-height: 220px;
+      overflow-y: auto;
+      border: 1px solid #f1f5f9;
+      border-radius: 8px;
+    }
+
+    .place-list-item {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 5px 8px;
+      border-bottom: 1px solid #f1f5f9;
+      font-size: 11px;
+      cursor: pointer;
+      transition: background 0.1s;
+    }
+
+    .place-list-item:last-child {
+      border-bottom: none;
+    }
+
+    .place-list-item:hover {
+      background: #f0f9ff;
+    }
+
+    .place-rank {
+      font-size: 10px;
+      font-weight: 700;
+      color: #94a3b8;
+      min-width: 20px;
+      text-align: right;
+    }
+
+    .place-name {
+      flex: 1;
+      font-weight: 600;
+      color: #1f2937;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .place-type-badge {
+      font-size: 9px;
+      font-weight: 700;
+      padding: 2px 6px;
+      border-radius: 999px;
+      white-space: nowrap;
+      flex-shrink: 0;
+    }
+
+    .place-type-badge.frequent {
+      background: #dcfce7;
+      color: #15803d;
+    }
+
+    .place-type-badge.rare {
+      background: #fff7ed;
+      color: #c2410c;
+    }
+
+    .place-list-empty {
+      text-align: center;
+      font-size: 11px;
+      color: #94a3b8;
+      padding: 14px 0;
+    }
+
+    /* dark mode */
+    body.theme-dark .place-list-card {
+      border-color: #334155;
+    }
+
+    body.theme-dark .place-list-body {
+      background: #0f172a;
+    }
+
+    body.theme-dark .place-tab-btn {
+      background: #1e293b;
+      color: #94a3b8;
+      border-color: #334155;
+    }
+
+    body.theme-dark .place-tab-btn.active-frequent {
+      background: #14532d;
+      border-color: #166534;
+      color: #4ade80;
+    }
+
+    body.theme-dark .place-tab-btn.active-rare {
+      background: #431407;
+      border-color: #7c2d12;
+      color: #fb923c;
+    }
+
+    body.theme-dark .place-search-input {
+      background: #1e293b;
+      color: #e2e8f0;
+      border-color: #334155;
+    }
+
+    body.theme-dark .place-list-scroll {
+      border-color: #1e293b;
+    }
+
+    body.theme-dark .place-list-item {
+      border-bottom-color: #1e293b;
+    }
+
+    body.theme-dark .place-list-item:hover {
+      background: #1e3a8a22;
+    }
+
+    body.theme-dark .place-name {
+      color: #f1f5f9;
+    }
+
+    body.theme-dark .place-rank {
+      color: #64748b;
+    }
+
+    /* === MUSIC PLAYER === */
+    #musicPlayer {
+      position: fixed;
+      bottom: 44px;
+      right: 60px;
+      z-index: 1200;
+      background: rgba(15, 23, 42, 0.88);
+      backdrop-filter: blur(12px);
+      -webkit-backdrop-filter: blur(12px);
+      border: 1px solid rgba(99, 102, 241, 0.4);
+      border-radius: 16px;
+      padding: 8px 12px;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      box-shadow: 0 8px 28px rgba(0, 0, 0, 0.4);
+      min-width: 210px;
+      transition: opacity 0.3s, transform 0.3s;
+    }
+
+    #musicPlayer.hidden-player {
+      opacity: 0;
+      pointer-events: none;
+      transform: translateY(10px);
+    }
+
+    .music-icon {
+      font-size: 18px;
+      cursor: pointer;
+      flex-shrink: 0;
+      width: 32px;
+      height: 32px;
+      border-radius: 50%;
+      background: linear-gradient(135deg, #7c3aed, #6366f1);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: transform 0.15s;
+    }
+
+    .music-icon:hover {
+      transform: scale(1.12);
+    }
+
+    .music-info {
+      flex: 1;
+      min-width: 0;
+    }
+
+    .music-title {
+      font-size: 10px;
+      font-weight: 700;
+      color: #e2e8f0;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .music-artist {
+      font-size: 9px;
+      color: #94a3b8;
+      margin-top: 1px;
+    }
+
+    /* Equalizer bars animation */
+    .eq-bars {
+      display: flex;
+      align-items: flex-end;
+      gap: 2px;
+      height: 14px;
+      flex-shrink: 0;
+    }
+
+    .eq-bar {
+      width: 3px;
+      border-radius: 2px;
+      background: linear-gradient(to top, #6366f1, #a78bfa);
+      animation: eqAnim 0.8s ease-in-out infinite alternate;
+    }
+
+    .eq-bar:nth-child(1) {
+      height: 40%;
+      animation-duration: 0.6s;
+    }
+
+    .eq-bar:nth-child(2) {
+      height: 80%;
+      animation-duration: 0.9s;
+    }
+
+    .eq-bar:nth-child(3) {
+      height: 55%;
+      animation-duration: 0.7s;
+    }
+
+    .eq-bar:nth-child(4) {
+      height: 100%;
+      animation-duration: 1.0s;
+    }
+
+    .eq-bar:nth-child(5) {
+      height: 65%;
+      animation-duration: 0.75s;
+    }
+
+    .eq-bars.paused .eq-bar {
+      animation-play-state: paused;
+      height: 20%;
+    }
+
+    @keyframes eqAnim {
+      from {
+        transform: scaleY(0.3);
+      }
+
+      to {
+        transform: scaleY(1);
+      }
+    }
+
+    /* Volume control */
+    .music-vol-wrap {
+      display: flex;
+      align-items: center;
+      gap: 4px;
+      flex-shrink: 0;
+    }
+
+    .music-vol-icon {
+      font-size: 11px;
+      color: #94a3b8;
+    }
+
+    .music-vol-slider {
+      -webkit-appearance: none;
+      appearance: none;
+      width: 56px;
+      height: 3px;
+      border-radius: 99px;
+      background: rgba(255, 255, 255, 0.15);
+      outline: none;
+      cursor: pointer;
+    }
+
+    .music-vol-slider::-webkit-slider-thumb {
+      -webkit-appearance: none;
+      width: 11px;
+      height: 11px;
+      border-radius: 50%;
+      background: #a78bfa;
+      cursor: pointer;
+      box-shadow: 0 0 4px rgba(167, 139, 250, 0.6);
+    }
+
+    /* Toggle visibility FAB */
+    #musicToggleBtn {
+      position: fixed;
+      bottom: 44px;
+      right: 12px;
+      z-index: 1201;
+      width: 40px;
+      height: 40px;
+      border-radius: 12px;
+      border: none;
+      background: rgba(99, 102, 241, 0.85);
+      backdrop-filter: blur(8px);
+      box-shadow: 0 4px 16px rgba(99, 102, 241, 0.4);
+      font-size: 18px;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: background 0.15s, transform 0.15s;
+      color: #fff;
+    }
+
+    #musicToggleBtn:hover {
+      background: #7c3aed;
+      transform: translateY(-2px);
+    }
+
+    /* ========== CHATBOT STYLES ========== */
+    #chatbotToggle {
+      position: fixed;
+      bottom: 94px;
+      right: 12px;
+      z-index: 1300;
+      width: 48px;
+      height: 48px;
+      border-radius: 50%;
+      border: none;
+      background: linear-gradient(135deg, #6366f1, #8b5cf6);
+      box-shadow: 0 4px 20px rgba(99, 102, 241, 0.55);
+      font-size: 22px;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: transform 0.2s, box-shadow 0.2s;
+      color: #fff;
+    }
+
+    #chatbotToggle:hover {
+      transform: translateY(-3px) scale(1.07);
+      box-shadow: 0 8px 28px rgba(99, 102, 241, 0.7);
+    }
+
+    #chatbotToggle .chat-badge {
+      position: absolute;
+      top: -4px;
+      right: -4px;
+      width: 16px;
+      height: 16px;
+      background: #ef4444;
+      border-radius: 50%;
+      font-size: 9px;
+      font-weight: 700;
+      color: #fff;
+      display: none;
+      align-items: center;
+      justify-content: center;
+      border: 2px solid #fff;
+    }
+
+    #chatbotToggle .chat-badge.show {
+      display: flex;
+    }
+
+    #chatbotPanel {
+      position: fixed;
+      bottom: 152px;
+      right: 12px;
+      z-index: 1300;
+      width: 340px;
+      max-height: 520px;
+      border-radius: 20px;
+      background: rgba(255, 255, 255, 0.95);
+      backdrop-filter: blur(16px);
+      -webkit-backdrop-filter: blur(16px);
+      border: 1px solid rgba(255, 255, 255, 0.9);
+      box-shadow: 0 20px 60px rgba(0, 0, 0, 0.18), 0 0 0 1px rgba(99, 102, 241, 0.1);
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+      transform-origin: bottom right;
+      transition: transform 0.3s cubic-bezier(0.34, 1.56, 0.64, 1), opacity 0.25s ease;
+    }
+
+    #chatbotPanel.hidden {
+      transform: scale(0.85) translateY(20px);
+      opacity: 0;
+      pointer-events: none;
+    }
+
+    .chat-header {
+      background: linear-gradient(135deg, #4f46e5, #7c3aed);
+      padding: 14px 16px;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      flex-shrink: 0;
+    }
+
+    .chat-header-avatar {
+      width: 36px;
+      height: 36px;
+      border-radius: 50%;
+      background: rgba(255, 255, 255, 0.2);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 18px;
+      flex-shrink: 0;
+    }
+
+    .chat-header-info {
+      flex: 1;
+    }
+
+    .chat-header-name {
+      font-size: 14px;
+      font-weight: 700;
+      color: #fff;
+      letter-spacing: 0.2px;
+    }
+
+    .chat-header-status {
+      font-size: 10px;
+      color: rgba(255, 255, 255, 0.75);
+      display: flex;
+      align-items: center;
+      gap: 4px;
+      margin-top: 1px;
+    }
+
+    .chat-status-dot {
+      width: 6px;
+      height: 6px;
+      border-radius: 50%;
+      background: #4ade80;
+      animation: chatPulse 2s ease-in-out infinite;
+    }
+
+    @keyframes chatPulse {
+
+      0%,
+      100% {
+        opacity: 1;
+        transform: scale(1);
+      }
+
+      50% {
+        opacity: 0.6;
+        transform: scale(1.3);
+      }
+    }
+
+    .chat-header-close {
+      border: none;
+      background: rgba(255, 255, 255, 0.15);
+      color: #fff;
+      border-radius: 8px;
+      width: 28px;
+      height: 28px;
+      font-size: 14px;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: background 0.15s;
+      flex-shrink: 0;
+    }
+
+    .chat-header-close:hover {
+      background: rgba(255, 255, 255, 0.3);
+    }
+
+    .chat-messages {
+      flex: 1;
+      overflow-y: auto;
+      padding: 14px;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+      min-height: 0;
+      max-height: 360px;
+      scroll-behavior: smooth;
+    }
+
+    .chat-messages::-webkit-scrollbar {
+      width: 4px;
+    }
+
+    .chat-messages::-webkit-scrollbar-track {
+      background: transparent;
+    }
+
+    .chat-messages::-webkit-scrollbar-thumb {
+      background: rgba(99, 102, 241, 0.25);
+      border-radius: 99px;
+    }
+
+    .chat-bubble {
+      max-width: 82%;
+      padding: 9px 13px;
+      border-radius: 16px;
+      font-size: 12.5px;
+      line-height: 1.5;
+      word-break: break-word;
+      animation: chatBubbleIn 0.25s cubic-bezier(0.34, 1.56, 0.64, 1);
+    }
+
+    @keyframes chatBubbleIn {
+      from {
+        opacity: 0;
+        transform: scale(0.85) translateY(8px);
+      }
+
+      to {
+        opacity: 1;
+        transform: scale(1) translateY(0);
+      }
+    }
+
+    .chat-bubble.user {
+      align-self: flex-end;
+      background: linear-gradient(135deg, #4f46e5, #7c3aed);
+      color: #fff;
+      border-bottom-right-radius: 4px;
+    }
+
+    .chat-bubble.bot {
+      align-self: flex-start;
+      background: #f1f5f9;
+      color: #1e293b;
+      border-bottom-left-radius: 4px;
+    }
+
+    .chat-bubble.error {
+      align-self: flex-start;
+      background: #fef2f2;
+      color: #dc2626;
+      border: 1px solid #fecaca;
+      border-bottom-left-radius: 4px;
+    }
+
+    .chat-bubble-time {
+      font-size: 9px;
+      opacity: 0.55;
+      margin-top: 4px;
+      text-align: right;
+    }
+
+    .chat-bubble.bot .chat-bubble-time {
+      text-align: left;
+    }
+
+    .chat-typing {
+      align-self: flex-start;
+      background: #f1f5f9;
+      border-radius: 16px;
+      border-bottom-left-radius: 4px;
+      padding: 10px 14px;
+      display: none;
+      gap: 5px;
+      align-items: center;
+    }
+
+    .chat-typing.show {
+      display: flex;
+    }
+
+    .typing-dot {
+      width: 7px;
+      height: 7px;
+      border-radius: 50%;
+      background: #6366f1;
+      animation: typingBounce 1.2s ease-in-out infinite;
+    }
+
+    .typing-dot:nth-child(2) {
+      animation-delay: 0.2s;
+    }
+
+    .typing-dot:nth-child(3) {
+      animation-delay: 0.4s;
+    }
+
+    @keyframes typingBounce {
+
+      0%,
+      80%,
+      100% {
+        transform: translateY(0);
+        opacity: 0.5;
+      }
+
+      40% {
+        transform: translateY(-6px);
+        opacity: 1;
+      }
+    }
+
+    .chat-quick-replies {
+      display: flex;
+      gap: 5px;
+      flex-wrap: wrap;
+      padding: 0 14px 8px;
+      flex-shrink: 0;
+    }
+
+    .chat-quick-btn {
+      border: 1px solid #c7d2fe;
+      background: #eef2ff;
+      color: #4338ca;
+      border-radius: 999px;
+      font-size: 10.5px;
+      font-weight: 600;
+      padding: 4px 10px;
+      cursor: pointer;
+      transition: background 0.15s, transform 0.1s;
+      white-space: nowrap;
+    }
+
+    .chat-quick-btn:hover {
+      background: #e0e7ff;
+      transform: translateY(-1px);
+    }
+
+    .chat-input-row {
+      padding: 10px 12px 14px;
+      display: flex;
+      gap: 8px;
+      align-items: center;
+      flex-shrink: 0;
+      border-top: 1px solid rgba(0, 0, 0, 0.06);
+    }
+
+    #chatInput {
+      flex: 1;
+      border: 1px solid #e2e8f0;
+      border-radius: 12px;
+      padding: 9px 12px;
+      font-size: 12.5px;
+      outline: none;
+      background: #f8fafc;
+      color: #1e293b;
+      resize: none;
+      line-height: 1.4;
+      transition: border-color 0.15s, box-shadow 0.15s;
+      font-family: inherit;
+      max-height: 80px;
+    }
+
+    #chatInput:focus {
+      border-color: #6366f1;
+      box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.15);
+      background: #fff;
+    }
+
+    #chatInput::placeholder {
+      color: #94a3b8;
+    }
+
+    #chatSendBtn {
+      width: 36px;
+      height: 36px;
+      border-radius: 12px;
+      border: none;
+      background: linear-gradient(135deg, #4f46e5, #7c3aed);
+      color: #fff;
+      font-size: 15px;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-shrink: 0;
+      transition: transform 0.15s, opacity 0.15s;
+    }
+
+    #chatSendBtn:hover {
+      transform: scale(1.1);
+    }
+
+    #chatSendBtn:disabled {
+      opacity: 0.5;
+      cursor: not-allowed;
+      transform: none;
+    }
+
+    .chat-api-config {
+      padding: 10px 14px 6px;
+      border-bottom: 1px solid rgba(0, 0, 0, 0.06);
+      flex-shrink: 0;
+    }
+
+    .chat-api-input {
+      width: 100%;
+      border: 1px solid #e2e8f0;
+      border-radius: 10px;
+      padding: 7px 10px;
+      font-size: 11.5px;
+      background: #f8fafc;
+      color: #1e293b;
+      box-sizing: border-box;
+      outline: none;
+      transition: border-color 0.15s;
+    }
+
+    .chat-api-input:focus {
+      border-color: #6366f1;
+      box-shadow: 0 0 0 2px rgba(99, 102, 241, 0.12);
+    }
+
+    .chat-api-label {
+      font-size: 10px;
+      color: #64748b;
+      margin-bottom: 4px;
+      font-weight: 600;
+      letter-spacing: 0.3px;
+    }
+
+    .chat-api-save {
+      margin-top: 6px;
+      width: 100%;
+      border: none;
+      border-radius: 8px;
+      background: linear-gradient(135deg, #4f46e5, #7c3aed);
+      color: #fff;
+      font-size: 11px;
+      font-weight: 700;
+      padding: 7px;
+      cursor: pointer;
+      transition: opacity 0.15s;
+    }
+
+    .chat-api-save:hover {
+      opacity: 0.88;
+    }
+
+    /* Ollama model badge */
+    .chat-model-badge {
+      padding: 6px 14px;
+      font-size: 10.5px;
+      font-weight: 700;
+      color: #4f46e5;
+      background: #eef2ff;
+      border-bottom: 1px solid rgba(99, 102, 241, 0.12);
+      letter-spacing: 0.2px;
+      display: flex;
+      align-items: center;
+      gap: 4px;
+      flex-shrink: 0;
+    }
+
+    /* Dark mode chatbot */
+    body.theme-dark #chatbotPanel {
+      background: rgba(15, 23, 42, 0.95);
+      border-color: rgba(99, 102, 241, 0.2);
+      box-shadow: 0 20px 60px rgba(0, 0, 0, 0.5);
+    }
+
+    body.theme-dark .chat-model-badge {
+      background: #1e1b4b;
+      color: #a5b4fc;
+      border-bottom-color: rgba(99, 102, 241, 0.15);
+    }
+
+    body.theme-dark .chat-bubble.bot {
+      background: #1e293b;
+      color: #e2e8f0;
+    }
+
+    body.theme-dark .chat-bubble.error {
+      background: #450a0a;
+      border-color: #7f1d1d;
+      color: #fca5a5;
+    }
+
+    body.theme-dark .chat-typing {
+      background: #1e293b;
+    }
+
+    body.theme-dark #chatInput {
+      background: #1e293b;
+      color: #e2e8f0;
+      border-color: #334155;
+    }
+
+    body.theme-dark #chatInput:focus {
+      background: #0f172a;
+      border-color: #6366f1;
+    }
+
+    body.theme-dark .chat-input-row {
+      border-top-color: rgba(255, 255, 255, 0.07);
+    }
+
+    body.theme-dark .chat-quick-btn {
+      background: #1e293b;
+      border-color: #334155;
+      color: #a5b4fc;
+    }
+
+    body.theme-dark .chat-quick-btn:hover {
+      background: #2d3748;
+    }
+  </style>
+</head>
+
+<body>
+  <!-- SPLASH SCREEN -->
+  <div id="splashScreen">
+    <canvas id="splashStars"></canvas>
+    <div class="splash-glow-ring"></div>
+    <img class="splash-logo" src="rome_logo.png" alt="WebGIS Rome Logo" />
+    <div class="splash-flag">
+      <div class="flag-g"></div>
+      <div class="flag-w"></div>
+      <div class="flag-r"></div>
+    </div>
+    <div class="splash-welcome">Welcome To</div>
+    <div class="splash-title">WebGIS Of Rome</div>
+    <div class="splash-sub">🏛️ &nbsp; Restoran · Jalan · Wisata &nbsp; 🗺️</div>
+    <div class="splash-progress-wrap">
+      <div class="splash-progress-track">
+        <div class="splash-progress-fill"></div>
+      </div>
+      <div class="splash-loading-text">LOADING MAP DATA...</div>
+    </div>
+    <button class="splash-skip" id="splashSkip">Lewati ›</button>
+  </div>
+  <div id="loadPanel" class="panel collapsed">
+    <div class="panel-header">
+      <div>
+        <div class="panel-title">Rome WebGIS</div>
+        <div class="panel-subtitle">
+          Restoran, Jalan, dan Wisata
+          <span id="filterActiveBadge" class="filter-badge">Filter: 0</span>
+        </div>
+      </div>
+      <div style="display: flex; gap: 6px; align-items: center;">
+        <button id="panelToggleBtn" type="button" class="icon-btn">Expand</button>
+        <div class="tag">LIVE</div>
+        <button id="themeToggleBtn" type="button" class="theme-btn">Dark</button>
+      </div>
+    </div>
+    <div id="panelContent" class="panel-content">
+      <div class="panel-scroll">
+        <div class="controls-row">
+          <button id="loadRomeBtn" type="button" class="btn">Load Data Rome</button>
+          <span id="loadStatus" class="status">Siap</span>
+        </div>
+        <div class="search-row">
+          <div class="search-input-wrap">
+            <input id="searchInput" class="search-input" type="text" placeholder="Cari tempat... (contoh: Colosseum)"
+              autocomplete="off" />
+            <div id="searchSuggestions" class="search-suggestions"></div>
+          </div>
+          <button id="searchBtn" type="button" class="search-btn">Cari</button>
+          <button id="locateBtn" type="button" class="search-btn">📍 Saya</button>
+        </div>
+        <div class="map-style-row">
+          <button id="mapRoadBtn" type="button" class="map-style-btn active">Road</button>
+          <button id="mapSatelliteBtn" type="button" class="map-style-btn">Satellite</button>
+          <button id="mapHybridBtn" type="button" class="map-style-btn">Hybrid</button>
+        </div>
+        <div class="progress-wrap">
+          <div class="progress-bar">
+            <div id="progressFill" class="progress-fill"></div>
+          </div>
+          <div id="progressLabel" class="progress-label">0%</div>
+        </div>
+        <div id="featureStats" class="stats-grid">
+          <div class="stat-item">
+            <div class="stat-label">🍽️ Restoran</div>
+            <div class="stat-value"><span id="countRestaurant">0</span></div>
+          </div>
+          <div class="stat-item">
+            <div class="stat-label">🛣️ Jalan</div>
+            <div class="stat-value"><span id="countRoad">0</span></div>
+          </div>
+          <div class="stat-item">
+            <div class="stat-label">🏛️ Wisata</div>
+            <div class="stat-value"><span id="countTourism">0</span></div>
+          </div>
+          <div class="stat-item">
+            <div class="stat-label">📊 Total</div>
+            <div class="stat-value"><span id="countTotal">0</span></div>
+          </div>
+        </div>
+        <!-- Tourism Visit Frequency -->
+        <div class="tourism-freq-card" id="tourismFreqCard">
+          <div class="tourism-freq-title">📊 Persentase Kunjungan Wisata</div>
+          <div class="tourism-freq-wrap">
+            <div class="donut-wrap">
+              <svg viewBox="0 0 90 90" width="90" height="90">
+                <circle cx="45" cy="45" r="36" fill="none" stroke="#e5e7eb" stroke-width="11" />
+                <circle id="donutFrequent" cx="45" cy="45" r="36" fill="none" stroke="#43a047" stroke-width="11"
+                  stroke-dasharray="0 226.19" stroke-dashoffset="56.55"
+                  style="transition:stroke-dasharray 0.9s ease;transform-origin:center;transform:rotate(-90deg);" />
+                <circle id="donutRare" cx="45" cy="45" r="36" fill="none" stroke="#f97316" stroke-width="11"
+                  stroke-dasharray="0 226.19" stroke-dashoffset="56.55"
+                  style="transition:stroke-dasharray 0.9s ease;transform-origin:center;transform:rotate(-90deg);" />
+              </svg>
+              <div class="donut-center">
+                <span class="donut-center-pct" id="donutCenterPct">0%</span>
+                <span class="donut-center-lbl">Sering</span>
+              </div>
+            </div>
+            <div class="freq-legend">
+              <div class="freq-legend-item">
+                <span class="freq-dot frequent"></span>
+                <div>
+                  <div class="freq-legend-label">Sering Dikunjungi</div>
+                  <div><span class="freq-legend-pct" id="pctFrequent">0%</span> <span class="freq-legend-count"
+                      id="cntFrequent">(0)</span></div>
+                </div>
+              </div>
+              <div class="freq-legend-item">
+                <span class="freq-dot rare"></span>
+                <div>
+                  <div class="freq-legend-label">Jarang Dikunjungi</div>
+                  <div><span class="freq-legend-pct" id="pctRare">0%</span> <span class="freq-legend-count"
+                      id="cntRare">(0)</span></div>
+                </div>
+              </div>
+            </div>
+          </div>
+          <div class="freq-bars">
+            <div class="freq-bar-row">
+              <span class="freq-bar-label">🟢 Sering</span>
+              <div class="freq-bar-track">
+                <div class="freq-bar-fill frequent" id="barFrequent"></div>
+              </div>
+              <span class="freq-bar-pct" id="barPctFrequent">0%</span>
+            </div>
+            <div class="freq-bar-row">
+              <span class="freq-bar-label">🟠 Jarang</span>
+              <div class="freq-bar-track">
+                <div class="freq-bar-fill rare" id="barRare"></div>
+              </div>
+              <span class="freq-bar-pct" id="barPctRare">0%</span>
+            </div>
+          </div>
+        </div>
+        <!-- Place Name List Card -->
+        <div class="place-list-card" id="placeListCard">
+          <div class="place-list-header" id="placeListToggle">
+            <div class="place-list-header-title">📋 Daftar Nama Tempat Wisata</div>
+            <span class="place-list-toggle-icon" id="placeListIcon">▼</span>
+          </div>
+          <div class="place-list-body" id="placeListBody">
+            <div class="place-tab-row">
+              <button class="place-tab-btn active-frequent" id="tabFrequentBtn">🟢 Sering <span
+                  id="tabFreqCnt">(0)</span></button>
+              <button class="place-tab-btn" id="tabRareBtn">🟠 Jarang <span id="tabRareCnt">(0)</span></button>
+            </div>
+            <input class="place-search-input" id="placeListSearch" type="text" placeholder="Cari nama tempat..." />
+            <div class="place-list-scroll" id="placeListScroll"></div>
+          </div>
+        </div>
+        <!-- GPS Route Panel -->
+        <div class="route-card" id="routeCard">
+          <div class="route-card-header" id="routeCardToggle">
+            <div class="route-card-title">🗺️ Navigasi GPS ke Lokasi</div>
+            <span class="route-card-icon" id="routeCardIcon">▼</span>
+          </div>
+          <div class="route-card-body" id="routeCardBody">
+            <!-- Mode indicator banner -->
+            <div id="routePickBanner"
+              style="display:none;padding:6px 8px;background:#fef3c7;border:1px solid #fcd34d;border-radius:8px;font-size:10px;font-weight:700;color:#92400e;margin-bottom:8px;text-align:center;">
+              🖱️ <span id="routePickBannerText">Klik peta untuk memilih titik</span></div>
+
+            <!-- TITIK AWAL -->
+            <div
+              style="font-size:10px;color:#6d28d9;font-weight:700;margin-bottom:5px;text-transform:uppercase;letter-spacing:0.5px;">
+              📍 Titik Awal</div>
+            <input class="route-input" id="routeFromInput" type="text" placeholder="Belum dipilih..." readonly />
+            <div style="display:flex;gap:5px;margin-bottom:8px;">
+              <button id="routePickFromBtn"
+                style="flex:1;border:1px solid #c4b5fd;border-radius:8px;background:#ede9fe;color:#6d28d9;font-size:10px;font-weight:700;padding:5px 4px;cursor:pointer;">🖱️
+                Pilih dari Peta</button>
+              <button id="routeUseMyLocation"
+                style="flex:1;border:1px solid #bfdbfe;border-radius:8px;background:#eff6ff;color:#1d4ed8;font-size:10px;font-weight:700;padding:5px 4px;cursor:pointer;">📍
+                Lokasi Saya</button>
+            </div>
+
+            <!-- TUJUAN -->
+            <div
+              style="font-size:10px;color:#6d28d9;font-weight:700;margin-bottom:5px;text-transform:uppercase;letter-spacing:0.5px;">
+              🏁 Tujuan</div>
+            <input class="route-input" id="routeToInput" type="text" placeholder="Belum dipilih..." readonly />
+            <button id="routePickToBtn"
+              style="width:100%;border:1px solid #c4b5fd;border-radius:8px;background:#ede9fe;color:#6d28d9;font-size:10px;font-weight:700;padding:5px;cursor:pointer;margin-bottom:8px;">🖱️
+              Pilih Tujuan dari Peta</button>
+            <div style="font-size:10px;color:#94a3b8;margin-bottom:6px;">💡 Atau klik langsung marker restoran/wisata di
+              peta</div>
+
+            <div class="route-btn-row">
+              <button class="route-go-btn" id="routeGoBtn">🚗 Cari Rute</button>
+              <button class="route-clear-btn" id="routeClearBtn">✕ Hapus</button>
+            </div>
+            <a class="route-gmaps-btn" id="routeGmapsBtn" target="_blank" rel="noopener noreferrer">🗺️ Buka di Google
+              Maps</a>
+            <div class="route-info-box" id="routeInfoBox">
+              <div class="route-info-row"><span class="route-info-key">📏 Jarak</span><span class="route-info-val"
+                  id="routeDistance">-</span></div>
+              <div class="route-info-row"><span class="route-info-key">⏱️ Waktu</span><span class="route-info-val"
+                  id="routeDuration">-</span></div>
+              <div class="route-info-row"><span class="route-info-key">🚦 Mode</span><span
+                  class="route-info-val">Berkendara</span></div>
+            </div>
+          </div>
+        </div>
+        <div class="helper-text">Jika auto-load gagal, pilih file <b>italy_rome.geojson</b> manual:</div>
+        <input id="geojsonFileInput" class="file-input" type="file"
+          accept=".geojson,.json,application/geo+json,application/json" />
+
+        <div class="filter-divider"></div>
+        <div class="filter-card">
+          <div class="filter-title">🔎 Filter Data</div>
+          <div class="filter-section" style="margin-bottom:8px;">
+            <input id="filterNameInput" class="filter-input" type="text" placeholder="Kata kunci..." />
+          </div>
+          <div class="filter-grid">
+            <select id="filterFoodType" class="filter-select">
+              <option value="all">Semua Kuliner</option>
+              <option value="restaurant">Restaurant</option>
+              <option value="cafe">Cafe</option>
+              <option value="fast_food">Fast Food</option>
+            </select>
+            <select id="filterTourismType" class="filter-select">
+              <option value="all">Semua Wisata</option>
+              <option value="attraction">Attraction</option>
+              <option value="viewpoint">Viewpoint</option>
+              <option value="museum">Museum</option>
+              <option value="hotel">Hotel</option>
+            </select>
+          </div>
+          <div class="filter-actions">
+            <button id="applyFilterBtn" type="button" class="filter-apply-btn">✔ Terapkan</button>
+            <button id="resetFilterBtn" type="button" class="filter-reset-btn2">Reset</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+  <!-- Floating Action Buttons -->
+  <div class="fab-col">
+    <button class="fab" id="btnFullscreen" title="Fullscreen">⛶</button>
+    <button class="fab" id="btnFitBounds" title="Zoom ke semua marker">🎯</button>
+    <button class="fab" id="btnHeatmap" title="Toggle Heatmap">🌡️</button>
+    <button class="fab" id="btnExportCsv" title="Export CSV">📤</button>
+  </div>
+  <!-- Coordinate Bar -->
+  <div id="coordBar"><span>Lat:</span> <b id="coordLat">–</b> &nbsp;<span>Lng:</span> <b id="coordLng">–</b>
+    &nbsp;<span>Zoom:</span> <b id="coordZoom">13</b></div>
+  <div id="map"></div>
+
+  <!-- MUSIC PLAYER -->
+  <audio id="bgMusic" loop>
+    <source src="geoffharvey-taste-of-italy-362413.mp3" type="audio/mpeg">
+  </audio>
+  <button id="musicToggleBtn" title="Toggle Music Player">🎵</button>
+  <div id="musicPlayer" class="hidden-player">
+    <div class="music-icon" id="musicPlayBtn">▶️</div>
+    <div class="music-info">
+      <div class="music-title">Taste of Italy</div>
+      <div class="music-artist">Geoff Harvey</div>
+    </div>
+    <div class="eq-bars paused" id="eqBars">
+      <div class="eq-bar"></div>
+      <div class="eq-bar"></div>
+      <div class="eq-bar"></div>
+      <div class="eq-bar"></div>
+      <div class="eq-bar"></div>
+    </div>
+    <div class="music-vol-wrap">
+      <span class="music-vol-icon">🔊</span>
+      <input class="music-vol-slider" id="musicVolSlider" type="range" min="0" max="100" value="40" />
+    </div>
+  </div>
+
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"
+    integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
+  <script src="https://unpkg.com/leaflet.markercluster@1.5.3/dist/leaflet.markercluster.js"></script>
+  <script src="https://unpkg.com/leaflet.heat@0.2.0/dist/leaflet-heat.js"></script>
+  <script>
+    const map = L.map("map").setView([41.9028, 12.4964], 13);
+
+    const roadMap = L.tileLayer("https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png", {
+      maxZoom: 20,
+      attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
+    }).addTo(map);
+    const satelliteMap = L.tileLayer(
+      "https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}",
+      { maxZoom: 19, attribution: "Tiles &copy; Esri" }
+    );
+    const hybridLabels = L.tileLayer(
+      "https://services.arcgisonline.com/ArcGIS/rest/services/Reference/World_Boundaries_and_Places/MapServer/tile/{z}/{y}/{x}",
+      { maxZoom: 19, attribution: "Labels &copy; Esri" }
+    );
+
+    const baseMaps = {
+      "🛣️ Road": roadMap,
+      "🛰️ Satellite": satelliteMap
+    };
+    const filterState = {
+      keyword: "",
+      foodType: "all",
+      tourismType: "all"
+    };
+    const filterActiveBadge = document.getElementById("filterActiveBadge");
+    let currentGeojsonData = null;
+
+    function updateFilterBadge() {
+      let count = 0;
+      if (filterState.keyword.trim()) count += 1;
+      if (filterState.foodType !== "all") count += 1;
+      if (filterState.tourismType !== "all") count += 1;
+      filterActiveBadge.textContent = `Filter: ${count}`;
+    }
+
+    function matchesKeyword(properties) {
+      const keyword = filterState.keyword.trim().toLowerCase();
+      if (!keyword) return true;
+      const fields = [
+        properties.name,
+        properties.amenity,
+        properties.highway,
+        properties.tourism
+      ]
+        .filter(Boolean)
+        .join(" ")
+        .toLowerCase();
+      return fields.includes(keyword);
+    }
+
+    function buildInfoMedia(properties, mediaClass, fallbackEmoji) {
+      const imageUrl = getImageUrl(properties);
+      if (imageUrl && /^https?:\/\//i.test(imageUrl)) {
+        return `<div class="info-media ${mediaClass}"><img src="${imageUrl}" alt="Preview lokasi" loading="lazy" referrerpolicy="no-referrer" /></div>`;
+      }
+      return `<div class="info-media ${mediaClass}">${fallbackEmoji}</div>`;
+    }
+
+    function getImageUrl(properties) {
+      if (!properties) return "";
+      const rawImage = typeof properties.image === "string" ? properties.image.trim() : "";
+      if (rawImage && /^https?:\/\//i.test(rawImage)) {
+        return rawImage;
+      }
+
+      const commonsRaw = typeof properties.wikimedia_commons === "string" ? properties.wikimedia_commons.trim() : "";
+      if (!commonsRaw) return "";
+      const commonsFile = commonsRaw.replace(/^File:/i, "");
+      if (!commonsFile) return "";
+      return `https://commons.wikimedia.org/wiki/Special:FilePath/${encodeURIComponent(commonsFile)}`;
+    }
+
+    function getWebsiteUrl(properties) {
+      if (!properties) return "";
+      const candidates = [properties.website, properties.url, properties.contact_website];
+      for (const item of candidates) {
+        if (typeof item !== "string") continue;
+        const value = item.trim();
+        if (!value) continue;
+        if (/^https?:\/\//i.test(value)) return value;
+        return `https://${value}`;
+      }
+      return "";
+    }
+
+    function getOsmFeatureUrl(properties) {
+      if (!properties) return "";
+      const id = properties.osm_id;
+      const rawType = typeof properties.osm_type === "string" ? properties.osm_type.toLowerCase() : "";
+      if (!id || !rawType) return "";
+
+      let osmPathType = "";
+      if (rawType.startsWith("node")) osmPathType = "node";
+      if (rawType.startsWith("way")) osmPathType = "way";
+      if (rawType.startsWith("relation")) osmPathType = "relation";
+      if (!osmPathType) return "";
+
+      return `https://www.openstreetmap.org/${osmPathType}/${id}`;
+    }
+
+    function buildExternalLinks(properties) {
+      const websiteUrl = getWebsiteUrl(properties);
+      const osmUrl = getOsmFeatureUrl(properties);
+
+      if (!websiteUrl && !osmUrl) return "";
+
+      const websiteLink = websiteUrl
+        ? `<a class="info-link-btn" href="${websiteUrl}" target="_blank" rel="noopener noreferrer">🌐 Website</a>`
+        : "";
+      const osmLink = osmUrl
+        ? `<a class="info-link-btn" href="${osmUrl}" target="_blank" rel="noopener noreferrer">🧭 OpenStreetMap</a>`
+        : "";
+
+      return `<div class="info-link-wrap">${websiteLink}${osmLink}</div>`;
+    }
+
+    // Marker Cluster Groups
+    const restaurantCluster = L.markerClusterGroup({
+      maxClusterRadius: 40,
+      iconCreateFunction: (cluster) => {
+        const n = cluster.getChildCount();
+        return L.divIcon({
+          html: `<div style="background:rgba(229,57,53,0.85);color:#fff;font-weight:700;font-size:12px;width:34px;height:34px;border-radius:50%;display:flex;align-items:center;justify-content:center;border:2px solid #fff;box-shadow:0 2px 8px rgba(0,0,0,0.25)">${n}</div>`,
+          className: '', iconSize: [34, 34]
+        });
+      }
+    });
+    const tourismCluster = L.markerClusterGroup({
+      maxClusterRadius: 40,
+      iconCreateFunction: (cluster) => {
+        const n = cluster.getChildCount();
+        return L.divIcon({
+          html: `<div style="background:rgba(67,160,71,0.85);color:#fff;font-weight:700;font-size:12px;width:34px;height:34px;border-radius:50%;display:flex;align-items:center;justify-content:center;border:2px solid #fff;box-shadow:0 2px 8px rgba(0,0,0,0.25)">${n}</div>`,
+          className: '', iconSize: [34, 34]
+        });
+      }
+    });
+
+    // Heatmap layer (starts hidden)
+    let heatLayer = null;
+    let heatmapActive = false;
+
+    const restaurantLayer = L.geoJSON(null, {
+      filter: (feature) => {
+        const p = feature.properties || {};
+        const amenity = (p.amenity || "").toString().toLowerCase();
+        const isFood = amenity === "restaurant" || amenity === "fast_food" || amenity === "cafe";
+        if (!isFood) return false;
+        if (filterState.foodType !== "all" && amenity !== filterState.foodType) return false;
+        return matchesKeyword(p);
+      },
+      pointToLayer: (feature, latlng) =>
+        L.circleMarker(latlng, {
+          radius: 6,
+          fillColor: "#e53935",
+          color: "#9f1f1f",
+          weight: 1,
+          fillOpacity: 0.9
+        }),
+      style: {
+        color: "#e53935",
+        weight: 2
+      },
+      onEachFeature: (feature, layer) => {
+        const p = feature.properties || {};
+        layer.bindPopup(
+          `<div class="info-card">` +
+          `<div class="info-head info-head-restaurant">🍽️ Restoran / Kuliner</div>` +
+          `<div class="info-body">` +
+          buildInfoMedia(p, "media-restaurant", "🍝") +
+          `<div class="info-row"><span class="info-key">Nama</span><span class="info-val">${p.name || "-"}</span></div>` +
+          `<div class="info-row"><span class="info-key">Kategori</span><span class="info-val">${p.amenity || "-"}</span></div>` +
+          `<div class="info-row"><span class="info-key">Jam Buka</span><span class="info-val">${p.opening_hours || "-"}</span></div>` +
+          buildExternalLinks(p) +
+          `</div></div>`
+        );
+      }
+    });
+
+    const roadLayer = L.geoJSON(null, {
+      filter: (feature) => {
+        const p = feature.properties || {};
+        if (!Boolean(p.highway)) return false;
+        return matchesKeyword(p);
+      },
+      style: (feature) => {
+        const p = feature.properties || {};
+        const h = (p.highway || "").toString().toLowerCase();
+        let color = "#1e88e5";
+        let weight = 2;
+        if (h.includes("motorway") || h.includes("trunk")) {
+          color = "#0d47a1";
+          weight = 4;
+        } else if (h.includes("primary")) {
+          color = "#1565c0";
+          weight = 3.5;
+        } else if (h.includes("secondary")) {
+          color = "#1976d2";
+          weight = 3;
+        }
+        return { color, weight, opacity: 0.85 };
+      },
+      onEachFeature: (feature, layer) => {
+        const p = feature.properties || {};
+        layer.bindPopup(
+          `<div class="info-card">` +
+          `<div class="info-head info-head-road">🛣️ Informasi Jalan</div>` +
+          `<div class="info-body">` +
+          buildInfoMedia(p, "media-road", "🛣️") +
+          `<div class="info-row"><span class="info-key">Nama</span><span class="info-val">${p.name || "-"}</span></div>` +
+          `<div class="info-row"><span class="info-key">Tipe</span><span class="info-val">${p.highway || "-"}</span></div>` +
+          `<div class="info-row"><span class="info-key">Satu Arah</span><span class="info-val">${p.oneway || "-"}</span></div>` +
+          buildExternalLinks(p) +
+          `</div></div>`
+        );
+      }
+    });
+
+    const tourismLayer = L.geoJSON(null, {
+      filter: (feature) => {
+        const p = feature.properties || {};
+        const tourism = (p.tourism || "").toString().toLowerCase();
+        if (!tourism) return false;
+        if (filterState.tourismType !== "all" && tourism !== filterState.tourismType) return false;
+        return matchesKeyword(p);
+      },
+      pointToLayer: (feature, latlng) =>
+        L.circleMarker(latlng, {
+          radius: 6,
+          fillColor: "#43a047",
+          color: "#1b5e20",
+          weight: 1,
+          fillOpacity: 0.9
+        }),
+      style: {
+        color: "#43a047",
+        weight: 2,
+        fillOpacity: 0.3
+      },
+      onEachFeature: (feature, layer) => {
+        const p = feature.properties || {};
+        layer.bindPopup(
+          `<div class="info-card">` +
+          `<div class="info-head info-head-tourism">📍 Tempat Wisata</div>` +
+          `<div class="info-body">` +
+          buildInfoMedia(p, "media-tourism", "🏛️") +
+          `<div class="info-row"><span class="info-key">Nama</span><span class="info-val">${p.name || "-"}</span></div>` +
+          `<div class="info-row"><span class="info-key">Kategori</span><span class="info-val">${p.tourism || "-"}</span></div>` +
+          `<div class="info-row"><span class="info-key">OSM ID</span><span class="info-val">${p.osm_id || "-"}</span></div>` +
+          buildExternalLinks(p) +
+          `</div></div>`
+        );
+      }
+    });
+
+    const overlays = {
+      "🍽️ Restoran/Kuliner": restaurantCluster,
+      "🛣️ Jalan": roadLayer,
+      "🏛️ Tempat Wisata": tourismCluster
+    };
+
+    L.control.layers(baseMaps, overlays, { collapsed: false, position: "topleft" }).addTo(map);
+
+    const legend = L.control({ position: "bottomleft" });
+    legend.onAdd = function () {
+      const div = L.DomUtil.create("div", "legend");
+      div.innerHTML =
+        '<div class="legend-title">🗺️ Legenda Tema</div>' +
+        '<div class="legend-item"><span class="legend-dot restaurant"></span>Restoran/Kuliner</div>' +
+        '<div class="legend-item"><span class="legend-dot road"></span>Jalan</div>' +
+        '<div class="legend-item"><span class="legend-dot tourism"></span>Tempat Wisata</div>';
+      return div;
+    };
+    legend.addTo(map);
+
+    const loadPanel = document.getElementById("loadPanel");
+    const panelToggleBtn = document.getElementById("panelToggleBtn");
+    const panelContent = document.getElementById("panelContent");
+    const loadRomeBtn = document.getElementById("loadRomeBtn");
+    const loadStatus = document.getElementById("loadStatus");
+    const filterNameInput = document.getElementById("filterNameInput");
+    const filterFoodType = document.getElementById("filterFoodType");
+    const filterTourismType = document.getElementById("filterTourismType");
+    const applyFilterBtn = document.getElementById("applyFilterBtn");
+    const resetFilterBtn = document.getElementById("resetFilterBtn");
+    const searchInput = document.getElementById("searchInput");
+    const searchBtn = document.getElementById("searchBtn");
+    const locateBtn = document.getElementById("locateBtn");
+    const mapRoadBtn = document.getElementById("mapRoadBtn");
+    const mapSatelliteBtn = document.getElementById("mapSatelliteBtn");
+    const mapHybridBtn = document.getElementById("mapHybridBtn");
+    const geojsonFileInput = document.getElementById("geojsonFileInput");
+    const countRestaurant = document.getElementById("countRestaurant");
+    const countRoad = document.getElementById("countRoad");
+    const countTourism = document.getElementById("countTourism");
+    const countTotal = document.getElementById("countTotal");
+    const progressFill = document.getElementById("progressFill");
+    const progressLabel = document.getElementById("progressLabel");
+    const themeToggleBtn = document.getElementById("themeToggleBtn");
+    let searchMarker = null;
+    let locationMarker = null;
+    let routeLayer = null;
+    let routeFromCoords = null;
+    let routeToCoords = null;
+    let routeToName = '';
+    let routeMarkerFrom = null;
+    let routeMarkerTo = null;
+    let isLoading = false;
+    let isPanelExpanded = false;
+    let isDarkTheme = false;
+    const THEME_STORAGE_KEY = "rome_webgis_theme";
+
+    function applyTheme(darkMode) {
+      isDarkTheme = darkMode;
+      document.body.classList.toggle("theme-dark", darkMode);
+      themeToggleBtn.textContent = darkMode ? "Light" : "Dark";
+      localStorage.setItem(THEME_STORAGE_KEY, darkMode ? "dark" : "light");
+    }
+
+    function loadSavedTheme() {
+      const savedTheme = localStorage.getItem(THEME_STORAGE_KEY);
+      if (savedTheme === "dark") {
+        applyTheme(true);
+        return;
+      }
+      if (savedTheme === "light") {
+        applyTheme(false);
+        return;
+      }
+
+      const prefersDark = window.matchMedia && window.matchMedia("(prefers-color-scheme: dark)").matches;
+      applyTheme(prefersDark);
+    }
+
+    function setProgress(percent) {
+      const safePercent = Math.max(0, Math.min(100, Number(percent) || 0));
+      progressFill.style.width = `${safePercent}%`;
+      progressLabel.textContent = `${Math.round(safePercent)}%`;
+    }
+
+    function setLoadingState(loading, statusText) {
+      isLoading = loading;
+      loadRomeBtn.disabled = loading;
+      geojsonFileInput.disabled = loading;
+      applyFilterBtn.disabled = loading;
+      resetFilterBtn.disabled = loading;
+      loadRomeBtn.textContent = loading ? "Loading..." : "Load Data Rome";
+      if (!loading && progressLabel.textContent !== "100%") {
+        setProgress(0);
+      }
+      if (statusText) {
+        loadStatus.textContent = statusText;
+      }
+    }
+
+    function setPanelExpanded(expanded) {
+      isPanelExpanded = expanded;
+      loadPanel.classList.toggle("collapsed", !expanded);
+      panelContent.style.display = expanded ? "block" : "none";
+      panelToggleBtn.textContent = expanded ? "Ringkas" : "Expand";
+    }
+
+    function applyFiltersFromUI() {
+      filterState.keyword = (filterNameInput.value || "").trim();
+      filterState.foodType = filterFoodType.value || "all";
+      filterState.tourismType = filterTourismType.value || "all";
+      updateFilterBadge();
+      if (!currentGeojsonData) return;
+      renderGeojson(currentGeojsonData, { fitBounds: false });
+      loadStatus.textContent = "Filter diterapkan";
+    }
+
+    function resetFilters() {
+      filterState.keyword = "";
+      filterState.foodType = "all";
+      filterState.tourismType = "all";
+      updateFilterBadge();
+      filterNameInput.value = "";
+      filterFoodType.value = "all";
+      filterTourismType.value = "all";
+      if (!currentGeojsonData) return;
+      renderGeojson(currentGeojsonData, { fitBounds: false });
+      loadStatus.textContent = "Filter direset";
+    }
+
+    function setActiveMapStyle(style) {
+      map.removeLayer(roadMap);
+      map.removeLayer(satelliteMap);
+      map.removeLayer(hybridLabels);
+
+      mapRoadBtn.classList.remove("active");
+      mapSatelliteBtn.classList.remove("active");
+      mapHybridBtn.classList.remove("active");
+
+      if (style === "satellite") {
+        satelliteMap.addTo(map);
+        mapSatelliteBtn.classList.add("active");
+      } else if (style === "hybrid") {
+        satelliteMap.addTo(map);
+        hybridLabels.addTo(map);
+        mapHybridBtn.classList.add("active");
+      } else {
+        roadMap.addTo(map);
+        mapRoadBtn.classList.add("active");
+      }
+    }
+
+    // ===== LOCAL SEARCH (hanya dalam data GeoJSON Roma) =====
+    function searchLocalData(query) {
+      if (!query || query.trim().length < 1) return [];
+      const q = query.trim().toLowerCase();
+      const results = [];
+      const seen = new Set();
+
+      function tryLayer(layer) {
+        layer.eachLayer((l) => {
+          const props = l.feature && l.feature.properties ? l.feature.properties : {};
+          const name = (props.name || "").trim();
+          if (!name) return;
+          if (!name.toLowerCase().includes(q)) return;
+          // Get coordinates
+          let lat = null, lng = null;
+          if (l.getLatLng) {
+            const ll = l.getLatLng();
+            lat = ll.lat; lng = ll.lng;
+          } else if (l.getBounds) {
+            const c = l.getBounds().getCenter();
+            lat = c.lat; lng = c.lng;
+          }
+          if (lat === null || lng === null) return;
+          const key = name + "|" + lat.toFixed(5) + "|" + lng.toFixed(5);
+          if (seen.has(key)) return;
+          seen.add(key);
+          // Determine category
+          let category = "";
+          if (props.amenity) category = props.amenity;
+          else if (props.tourism) category = props.tourism;
+          else if (props.highway) category = props.highway;
+          results.push({ name, category, lat, lng, properties: props });
+        });
+      }
+
+      tryLayer(restaurantLayer);
+      tryLayer(tourismLayer);
+      tryLayer(roadLayer);
+
+      // Sort: exact match first, then startsWith, then includes
+      results.sort((a, b) => {
+        const an = a.name.toLowerCase(), bn = b.name.toLowerCase();
+        if (an === q && bn !== q) return -1;
+        if (bn === q && an !== q) return 1;
+        if (an.startsWith(q) && !bn.startsWith(q)) return -1;
+        if (bn.startsWith(q) && !an.startsWith(q)) return 1;
+        return an.localeCompare(bn);
+      });
+
+      return results.slice(0, 8);
+    }
+
+    function searchPlace() {
+      const query = (searchInput.value || "").trim();
+      if (!query) return;
+
+      if (!currentGeojsonData) {
+        loadStatus.textContent = "Data belum dimuat, muat data Roma dulu!";
+        return;
+      }
+
+      const results = searchLocalData(query);
+      if (results.length === 0) {
+        loadStatus.textContent = "Tidak ditemukan di data Roma";
+        return;
+      }
+      const result = results[0];
+      if (searchMarker) map.removeLayer(searchMarker);
+      searchMarker = L.marker([result.lat, result.lng])
+        .addTo(map)
+        .bindPopup(`🔎 <b>${result.name}</b>${result.category ? "<br><small>" + result.category + "</small>" : ""}`)
+        .openPopup();
+      map.setView([result.lat, result.lng], 17, { animate: true });
+      loadStatus.textContent = `Ditemukan: ${result.name}`;
+    }
+
+    function locateMe() {
+      if (!navigator.geolocation) {
+        loadStatus.textContent = "Geolocation tidak didukung browser";
+        return;
+      }
+      loadStatus.textContent = "Mencari lokasi saya...";
+      navigator.geolocation.getCurrentPosition(
+        (position) => {
+          const { latitude, longitude, accuracy } = position.coords;
+          if (locationMarker) map.removeLayer(locationMarker);
+          locationMarker = L.circleMarker([latitude, longitude], {
+            radius: 8,
+            color: "#2563eb",
+            weight: 2,
+            fillColor: "#60a5fa",
+            fillOpacity: 0.9
+          }).addTo(map);
+          locationMarker.bindPopup(`📍 Lokasi Anda<br>Akurasi: ±${Math.round(accuracy)} m`).openPopup();
+          map.setView([latitude, longitude], 16, { animate: true });
+          loadStatus.textContent = "Lokasi ditemukan";
+        },
+        () => {
+          loadStatus.textContent = "Izin lokasi ditolak / gagal";
+        },
+        { enableHighAccuracy: true, timeout: 10000 }
+      );
+    }
+
+    // Tourism types classified as "frequently visited"
+    const FREQUENT_TYPES = new Set([
+      'attraction', 'museum', 'viewpoint', 'monument', 'artwork',
+      'zoo', 'theme_park', 'gallery', 'aquarium', 'ruins'
+    ]);
+
+    function updateTourismPercentage() {
+      let frequentCount = 0, rareCount = 0;
+      tourismLayer.eachLayer((l) => {
+        const t = ((l.feature?.properties?.tourism) || '').toLowerCase();
+        if (FREQUENT_TYPES.has(t)) frequentCount++;
+        else rareCount++;
+      });
+      const total = frequentCount + rareCount;
+      const pctFreq = total > 0 ? Math.round((frequentCount / total) * 100) : 0;
+      const pctRare = total > 0 ? 100 - pctFreq : 0;
+
+      document.getElementById('pctFrequent').textContent = pctFreq + '%';
+      document.getElementById('pctRare').textContent = pctRare + '%';
+      document.getElementById('cntFrequent').textContent = '(' + frequentCount + ')';
+      document.getElementById('cntRare').textContent = '(' + rareCount + ')';
+      document.getElementById('donutCenterPct').textContent = pctFreq + '%';
+      document.getElementById('barFrequent').style.width = pctFreq + '%';
+      document.getElementById('barRare').style.width = pctRare + '%';
+      document.getElementById('barPctFrequent').textContent = pctFreq + '%';
+      document.getElementById('barPctRare').textContent = pctRare + '%';
+
+      // Donut chart — circumference = 2π×36 ≈ 226.19
+      const circ = 2 * Math.PI * 36;
+      const freqArc = (pctFreq / 100) * circ;
+      const rareArc = (pctRare / 100) * circ;
+      const dFreq = document.getElementById('donutFrequent');
+      const dRare = document.getElementById('donutRare');
+      dFreq.style.strokeDasharray = freqArc + ' ' + (circ - freqArc);
+      dFreq.style.strokeDashoffset = circ / 4;
+      dRare.style.strokeDasharray = rareArc + ' ' + (circ - rareArc);
+      // Offset rare arc to start right after frequent arc
+      dRare.style.strokeDashoffset = (circ / 4) - freqArc;
+    }
+
+    // ===== PLACE NAME LIST =====
+    let placeListData = { frequent: [], rare: [] };
+    let placeListActiveTab = 'frequent';
+    let placeListFilterText = '';
+
+    function buildPlaceList() {
+      const frequent = [], rare = [];
+      tourismLayer.eachLayer((l) => {
+        const p = l.feature?.properties || {};
+        const name = (p.name || '').trim();
+        if (!name) return;
+        const t = (p.tourism || '').toLowerCase();
+        let lat = null, lng = null;
+        if (l.getLatLng) { const ll = l.getLatLng(); lat = ll.lat; lng = ll.lng; }
+        else if (l.getBounds) { const c = l.getBounds().getCenter(); lat = c.lat; lng = c.lng; }
+        // Skip entries without valid coordinates
+        if (lat === null || lng === null || isNaN(lat) || isNaN(lng)) return;
+        const entry = { name, type: t || 'tourism', lat, lng, layer: l };
+        if (FREQUENT_TYPES.has(t)) frequent.push(entry);
+        else rare.push(entry);
+      });
+      frequent.sort((a, b) => a.name.localeCompare(b.name));
+      rare.sort((a, b) => a.name.localeCompare(b.name));
+      placeListData = { frequent, rare };
+      document.getElementById('tabFreqCnt').textContent = '(' + frequent.length + ')';
+      document.getElementById('tabRareCnt').textContent = '(' + rare.length + ')';
+      renderPlaceList();
+    }
+
+    function renderPlaceList() {
+      const scroll = document.getElementById('placeListScroll');
+      const items = placeListData[placeListActiveTab] || [];
+      const q = placeListFilterText.toLowerCase();
+      const filtered = q ? items.filter(i => i.name.toLowerCase().includes(q)) : items;
+      if (filtered.length === 0) {
+        scroll.innerHTML = '<div class="place-list-empty">Tidak ada data</div>';
+        return;
+      }
+      const cls = placeListActiveTab === 'frequent' ? 'frequent' : 'rare';
+      scroll.innerHTML = filtered.map((item, idx) =>
+        `<div class="place-list-item" data-idx="${idx}" data-lat="${item.lat}" data-lng="${item.lng}" data-name="${item.name.replace(/"/g, '&quot;')}">
+          <span class="place-rank">${idx + 1}</span>
+          <span class="place-name" title="${item.name.replace(/"/g, '&quot;')}">${item.name}</span>
+          <span class="place-type-badge ${cls}">${item.type}</span>
+        </div>`
+      ).join('');
+
+      scroll.querySelectorAll('.place-list-item').forEach(el => {
+        el.addEventListener('click', () => {
+          const lat = parseFloat(el.dataset.lat);
+          const lng = parseFloat(el.dataset.lng);
+          const name = el.dataset.name;
+          const idx = parseInt(el.dataset.idx);
+          // Guard: must have valid finite coords
+          if (!isFinite(lat) || !isFinite(lng)) {
+            loadStatus.textContent = `Koordinat tidak tersedia untuk: ${name}`;
+            return;
+          }
+          const item = (placeListData[placeListActiveTab] || [])[idx];
+          // Remove old search marker
+          if (searchMarker) { map.removeLayer(searchMarker); searchMarker = null; }
+
+          if (item && item.layer && tourismCluster.hasLayer(item.layer)) {
+            // Zoom to show the layer in cluster, then open its ORIGINAL styled popup
+            tourismCluster.zoomToShowLayer(item.layer, () => {
+              item.layer.openPopup();
+            });
+          } else {
+            // Fallback: fly to location and open original popup if it exists
+            map.setView([lat, lng], 17, { animate: true });
+            if (item && item.layer && item.layer.getPopup()) {
+              item.layer.openPopup();
+            } else {
+              // Last resort: plain marker
+              searchMarker = L.marker([lat, lng]).addTo(map)
+                .bindPopup(
+                  `<div class="info-card">` +
+                  `<div class="info-head info-head-tourism">🏛️ Tempat Wisata</div>` +
+                  `<div class="info-body">` +
+                  `<div class="info-row"><span class="info-key">Nama</span><span class="info-val">${name}</span></div>` +
+                  `<div class="info-row"><span class="info-key">Kategori</span><span class="info-val">${item ? item.type : '-'}</span></div>` +
+                  `</div></div>`
+                ).openPopup();
+            }
+          }
+          loadStatus.textContent = `📌 ${name}`;
+        });
+      });
+    }
+
+    // Toggle open/close
+    document.getElementById('placeListToggle').addEventListener('click', () => {
+      const body = document.getElementById('placeListBody');
+      const icon = document.getElementById('placeListIcon');
+      const isOpen = body.classList.toggle('open');
+      icon.classList.toggle('open', isOpen);
+    });
+
+    // Tab switching
+    document.getElementById('tabFrequentBtn').addEventListener('click', () => {
+      placeListActiveTab = 'frequent';
+      document.getElementById('tabFrequentBtn').className = 'place-tab-btn active-frequent';
+      document.getElementById('tabRareBtn').className = 'place-tab-btn';
+      renderPlaceList();
+    });
+    document.getElementById('tabRareBtn').addEventListener('click', () => {
+      placeListActiveTab = 'rare';
+      document.getElementById('tabRareBtn').className = 'place-tab-btn active-rare';
+      document.getElementById('tabFrequentBtn').className = 'place-tab-btn';
+      renderPlaceList();
+    });
+
+    // Search filter
+    document.getElementById('placeListSearch').addEventListener('input', (e) => {
+      placeListFilterText = e.target.value.trim();
+      renderPlaceList();
+    });
+
+    function updateFeatureStats() {
+      const restaurantCount = restaurantLayer.getLayers().length;
+      const roadCount = roadLayer.getLayers().length;
+      const tourismCount = tourismLayer.getLayers().length;
+      const totalCount = restaurantCount + roadCount + tourismCount;
+
+      countRestaurant.textContent = String(restaurantCount);
+      countRoad.textContent = String(roadCount);
+      countTourism.textContent = String(tourismCount);
+      countTotal.textContent = String(totalCount);
+      updateTourismPercentage();
+      buildPlaceList();
+    }
+
+    function renderGeojson(geojsonData, options = {}) {
+      const { fitBounds = true } = options;
+      loadStatus.textContent = "Merender layer peta...";
+      setProgress(85);
+      restaurantLayer.clearLayers();
+      roadLayer.clearLayers();
+      tourismLayer.clearLayers();
+
+      // Clear clusters
+      restaurantCluster.clearLayers();
+      tourismCluster.clearLayers();
+
+      restaurantLayer.addData(geojsonData);
+      restaurantCluster.addLayer(restaurantLayer);
+      // Add cluster to map only on first load; on filter re-render respect user's checkbox state
+      if (fitBounds && !map.hasLayer(restaurantCluster)) map.addLayer(restaurantCluster);
+
+      roadLayer.addData(geojsonData);
+      if (!map.hasLayer(roadLayer)) roadLayer.addTo(map);
+
+      tourismLayer.addData(geojsonData);
+      tourismCluster.addLayer(tourismLayer);
+      if (fitBounds && !map.hasLayer(tourismCluster)) map.addLayer(tourismCluster);
+
+      // Rebuild heatmap if active
+      if (heatmapActive) buildHeatmap();
+
+      const group = L.featureGroup([restaurantLayer, roadLayer, tourismLayer]);
+      if (fitBounds && group.getLayers().length > 0) {
+        map.fitBounds(group.getBounds(), { padding: [20, 20] });
+      }
+      updateFeatureStats();
+      setProgress(100);
+      loadStatus.textContent = "Data Rome berhasil dimuat";
+    }
+
+    function showManualLoader(message) {
+      loadPanel.style.display = "block";
+      if (message) {
+        console.warn(message);
+      }
+    }
+
+    function tryLoadDefaultGeojson() {
+      if (isLoading) return;
+      setLoadingState(true, "Mengunduh data Rome...");
+      setProgress(10);
+      fetch("italy_rome.geojson")
+        .then((response) => {
+          if (!response.ok) {
+            throw new Error("Gagal memuat file GeoJSON.");
+          }
+          loadStatus.textContent = "Membaca data dari file...";
+          setProgress(35);
+          return response.json();
+        })
+        .then((geojsonData) => {
+          currentGeojsonData = geojsonData;
+          loadStatus.textContent = "Parsing data GeoJSON...";
+          setProgress(65);
+          renderGeojson(geojsonData);
+          setLoadingState(false);
+        })
+        .catch((error) => {
+          showManualLoader("Auto-load gagal. Pilih file GeoJSON manual.");
+          setProgress(0);
+          setLoadingState(false, "Gagal auto-load, pilih file manual");
+          console.error(error);
+        });
+    }
+
+    geojsonFileInput.addEventListener("change", (event) => {
+      if (isLoading) return;
+      const [file] = event.target.files || [];
+      if (!file) return;
+
+      setLoadingState(true, `Membaca file manual: ${file.name}...`);
+      setProgress(20);
+      const reader = new FileReader();
+      reader.onload = () => {
+        try {
+          loadStatus.textContent = "Parsing data manual...";
+          setProgress(60);
+          const geojsonData = JSON.parse(String(reader.result || ""));
+          currentGeojsonData = geojsonData;
+          renderGeojson(geojsonData);
+          setLoadingState(false, `Data manual dimuat: ${file.name}`);
+        } catch (error) {
+          setProgress(0);
+          setLoadingState(false, "File manual tidak valid");
+          alert("File tidak valid. Pastikan formatnya GeoJSON.");
+          console.error(error);
+        }
+      };
+      reader.onerror = () => {
+        setProgress(0);
+        setLoadingState(false, "Gagal membaca file manual");
+        alert("Gagal membaca file. Coba pilih ulang.");
+      };
+      reader.readAsText(file);
+    });
+
+    loadRomeBtn.addEventListener("click", () => {
+      tryLoadDefaultGeojson();
+    });
+    panelToggleBtn.addEventListener("click", () => setPanelExpanded(!isPanelExpanded));
+    applyFilterBtn.addEventListener("click", applyFiltersFromUI);
+    resetFilterBtn.addEventListener("click", resetFilters);
+    filterNameInput.addEventListener("keydown", (event) => {
+      if (event.key === "Enter") {
+        event.preventDefault();
+        applyFiltersFromUI();
+      }
+    });
+    searchBtn.addEventListener("click", () => {
+      hideSuggestions();
+      searchPlace();
+    });
+
+    // ===== AUTOCOMPLETE / SEARCH SUGGESTIONS =====
+    const searchSuggestions = document.getElementById("searchSuggestions");
+    let suggDebounceTimer = null;
+    let suggHighlightIndex = -1;
+    let suggItems = [];
+
+    function getSuggestionIcon(type, cls) {
+      const t = (type || "").toLowerCase();
+      const c = (cls || "").toLowerCase();
+      if (t === "amenity" && (c.includes("restaurant") || c.includes("fast_food") || c.includes("cafe") || c.includes("food"))) return "🍽️";
+      if (t === "tourism" || c.includes("museum") || c.includes("attraction") || c.includes("monument") || c.includes("historic")) return "🏛️";
+      if (t === "highway" || c.includes("road") || c.includes("street") || c.includes("avenue")) return "🛣️";
+      if (c.includes("hotel") || c.includes("hostel") || c.includes("lodging")) return "🏨";
+      if (c.includes("park") || c.includes("garden") || c.includes("nature")) return "🌿";
+      if (c.includes("church") || c.includes("cathedral") || c.includes("chapel")) return "⛪";
+      if (c.includes("university") || c.includes("school") || c.includes("college")) return "🏫";
+      if (c.includes("hospital") || c.includes("clinic") || c.includes("pharmacy")) return "🏥";
+      if (c.includes("shop") || c.includes("market") || c.includes("mall")) return "🛍️";
+      return "📍";
+    }
+
+    function showSuggestions(items) {
+      searchSuggestions.innerHTML = "";
+      suggItems = items;
+      suggHighlightIndex = -1;
+
+      if (items.length === 0) {
+        searchSuggestions.innerHTML = `<div class="sugg-empty">Tidak ada hasil dalam data Roma</div>`;
+      } else {
+        items.forEach((item, idx) => {
+          const icon = getSuggestionIcon(
+            item.properties && item.properties.amenity ? "amenity" :
+              item.properties && item.properties.tourism ? "tourism" :
+                item.properties && item.properties.highway ? "highway" : "",
+            item.category
+          );
+
+          const el = document.createElement("div");
+          el.className = "sugg-item";
+          el.dataset.idx = idx;
+          el.innerHTML =
+            `<span class="sugg-icon">${icon}</span>` +
+            `<div class="sugg-text">` +
+            `<div class="sugg-name">${item.name}</div>` +
+            `<div class="sugg-detail">${item.category || "Roma, Italia"}</div>` +
+            `</div>`;
+          el.addEventListener("mousedown", (e) => {
+            e.preventDefault();
+            selectSuggestion(idx);
+          });
+          searchSuggestions.appendChild(el);
+        });
+      }
+
+      searchSuggestions.classList.add("visible");
+      searchInput.classList.add("suggestions-open");
+    }
+
+    function hideSuggestions() {
+      searchSuggestions.classList.remove("visible");
+      searchInput.classList.remove("suggestions-open");
+      suggHighlightIndex = -1;
+      suggItems = [];
+    }
+
+    function highlightSuggestion(idx) {
+      const allItems = searchSuggestions.querySelectorAll(".sugg-item");
+      allItems.forEach((el, i) => el.classList.toggle("highlighted", i === idx));
+      if (idx >= 0 && allItems[idx]) {
+        const item = suggItems[idx];
+        const parts = (item.display_name || "").split(",");
+        searchInput.value = parts[0] || item.display_name;
+      }
+    }
+
+    function selectSuggestion(idx) {
+      const item = suggItems[idx];
+      if (!item) return;
+      searchInput.value = item.name;
+      hideSuggestions();
+      if (searchMarker) map.removeLayer(searchMarker);
+      searchMarker = L.marker([item.lat, item.lng])
+        .addTo(map)
+        .bindPopup(`🔎 <b>${item.name}</b>${item.category ? "<br><small>" + item.category + "</small>" : ""}`)
+        .openPopup();
+      map.setView([item.lat, item.lng], 17, { animate: true });
+      loadStatus.textContent = `Ditemukan: ${item.name}`;
+    }
+
+    function fetchSuggestions(query) {
+      if (!query || query.length < 2) { hideSuggestions(); return; }
+
+      if (!currentGeojsonData) {
+        // Data belum dimuat, tidak ada yang dicari
+        hideSuggestions();
+        return;
+      }
+
+      const results = searchLocalData(query);
+      showSuggestions(results);
+    }
+
+    searchInput.addEventListener("input", () => {
+      const val = searchInput.value.trim();
+      clearTimeout(suggDebounceTimer);
+      if (val.length < 2) { hideSuggestions(); return; }
+      suggDebounceTimer = setTimeout(() => fetchSuggestions(val), 320);
+    });
+
+    searchInput.addEventListener("keydown", (event) => {
+      const allItems = searchSuggestions.querySelectorAll(".sugg-item");
+      if (event.key === "ArrowDown") {
+        event.preventDefault();
+        suggHighlightIndex = Math.min(suggHighlightIndex + 1, allItems.length - 1);
+        highlightSuggestion(suggHighlightIndex);
+        return;
+      }
+      if (event.key === "ArrowUp") {
+        event.preventDefault();
+        suggHighlightIndex = Math.max(suggHighlightIndex - 1, -1);
+        highlightSuggestion(suggHighlightIndex);
+        return;
+      }
+      if (event.key === "Enter") {
+        event.preventDefault();
+        if (suggHighlightIndex >= 0 && suggItems[suggHighlightIndex]) {
+          selectSuggestion(suggHighlightIndex);
+        } else {
+          hideSuggestions();
+          searchPlace();
+        }
+        return;
+      }
+      if (event.key === "Escape") {
+        hideSuggestions();
+      }
+    });
+
+    searchInput.addEventListener("blur", () => {
+      setTimeout(hideSuggestions, 150);
+    });
+
+    // ===== GPS ROUTING =====
+    function setRouteFrom(lat, lng, label) {
+      routeFromCoords = { lat, lng };
+      document.getElementById('routeFromInput').value = label || `${lat.toFixed(5)}, ${lng.toFixed(5)}`;
+    }
+
+    function setRouteTo(lat, lng, name) {
+      routeToCoords = { lat, lng };
+      routeToName = name || `${lat.toFixed(5)}, ${lng.toFixed(5)}`;
+      document.getElementById('routeToInput').value = routeToName;
+      updateGmapsLink();
+    }
+
+    function updateGmapsLink() {
+      const btn = document.getElementById('routeGmapsBtn');
+      if (routeFromCoords && routeToCoords) {
+        const url = `https://www.google.com/maps/dir/${routeFromCoords.lat},${routeFromCoords.lng}/${routeToCoords.lat},${routeToCoords.lng}`;
+        btn.href = url;
+        btn.style.display = 'block';
+      } else {
+        btn.style.display = 'none';
+      }
+    }
+
+    function clearRoute() {
+      if (routeLayer) { map.removeLayer(routeLayer); routeLayer = null; }
+      if (routeMarkerFrom) { map.removeLayer(routeMarkerFrom); routeMarkerFrom = null; }
+      if (routeMarkerTo) { map.removeLayer(routeMarkerTo); routeMarkerTo = null; }
+      routeFromCoords = null; routeToCoords = null; routeToName = '';
+      document.getElementById('routeFromInput').value = '';
+      document.getElementById('routeToInput').value = '';
+      document.getElementById('routeInfoBox').classList.remove('visible');
+      document.getElementById('routeGmapsBtn').style.display = 'none';
+      loadStatus.textContent = 'Rute dihapus';
+    }
+
+    async function fetchRoute() {
+      if (!routeFromCoords || !routeToCoords) {
+        loadStatus.textContent = 'Tentukan titik awal dan tujuan terlebih dahulu!';
+        return;
+      }
+      loadStatus.textContent = '🗺️ Menghitung rute...';
+      const { lat: fLat, lng: fLng } = routeFromCoords;
+      const { lat: tLat, lng: tLng } = routeToCoords;
+      const url = `https://router.project-osrm.org/route/v1/driving/${fLng},${fLat};${tLng},${tLat}?overview=full&geometries=geojson`;
+      try {
+        const res = await fetch(url);
+        if (!res.ok) throw new Error('OSRM error');
+        const data = await res.json();
+        if (!data.routes || data.routes.length === 0) throw new Error('No route found');
+        const route = data.routes[0];
+        const coords = route.geometry.coordinates.map(([lng, lat]) => [lat, lng]);
+        if (routeLayer) map.removeLayer(routeLayer);
+        // Draw route line with animation
+        routeLayer = L.polyline(coords, {
+          color: '#7c3aed', weight: 5, opacity: 0.85,
+          dashArray: '10, 5', lineCap: 'round', lineJoin: 'round'
+        }).addTo(map);
+        // Animate dash
+        let offset = 0;
+        const animInterval = setInterval(() => {
+          offset = (offset - 1) % 15;
+          if (routeLayer) routeLayer.setStyle({ dashOffset: String(offset) });
+          else clearInterval(animInterval);
+        }, 60);
+        // Markers
+        if (routeMarkerFrom) map.removeLayer(routeMarkerFrom);
+        routeMarkerFrom = L.circleMarker([fLat, fLng], {
+          radius: 8, color: '#7c3aed', weight: 2, fillColor: '#a78bfa', fillOpacity: 1
+        }).addTo(map).bindPopup('📍 <b>Titik Awal</b>');
+        if (routeMarkerTo) map.removeLayer(routeMarkerTo);
+        routeMarkerTo = L.marker([tLat, tLng]).addTo(map)
+          .bindPopup(`🏁 <b>Tujuan:</b> ${routeToName}`).openPopup();
+        // Fit
+        map.fitBounds(routeLayer.getBounds(), { padding: [40, 40], animate: true });
+        // Info
+        const distKm = (route.distance / 1000).toFixed(1);
+        const durMin = Math.ceil(route.duration / 60);
+        const durHour = durMin >= 60 ? `${Math.floor(durMin / 60)} jam ${durMin % 60} menit` : `${durMin} menit`;
+        document.getElementById('routeDistance').textContent = distKm + ' km';
+        document.getElementById('routeDuration').textContent = durHour;
+        document.getElementById('routeInfoBox').classList.add('visible');
+        updateGmapsLink();
+        loadStatus.textContent = `✅ Rute ditemukan: ${distKm} km, ~${durHour}`;
+      } catch (err) {
+        loadStatus.textContent = 'Gagal menghitung rute. Coba Google Maps.';
+        console.error(err);
+      }
+    }
+
+    // Intercept marker clicks to set route destination
+    function patchLayerForRouting(geojsonLayer, label) {
+      geojsonLayer.on('click', (e) => {
+        if (!e.layer) return;
+        const p = e.layer.feature?.properties || {};
+        let lat, lng;
+        if (e.layer.getLatLng) { const ll = e.layer.getLatLng(); lat = ll.lat; lng = ll.lng; }
+        else if (e.layer.getBounds) { const c = e.layer.getBounds().getCenter(); lat = c.lat; lng = c.lng; }
+        if (lat === undefined) return;
+        const name = p.name || label;
+        setRouteTo(lat, lng, name);
+        // Open route panel
+        const body = document.getElementById('routeCardBody');
+        const icon = document.getElementById('routeCardIcon');
+        if (!body.classList.contains('open')) {
+          body.classList.add('open');
+          icon.classList.add('open');
+        }
+        loadStatus.textContent = `Tujuan dipilih: ${name}`;
+      });
+    }
+
+    // ===== ROUTE PICK MODE ('from' | 'to' | null) =====
+    let routePickMode = null; // 'from' or 'to'
+
+    function setRoutePickMode(mode) {
+      routePickMode = mode;
+      const banner = document.getElementById('routePickBanner');
+      const bannerText = document.getElementById('routePickBannerText');
+      const pickFromBtn = document.getElementById('routePickFromBtn');
+      const pickToBtn = document.getElementById('routePickToBtn');
+      if (mode === 'from') {
+        banner.style.display = 'block';
+        bannerText.textContent = 'Klik peta untuk set TITIK AWAL — klik lagi tombol untuk batal';
+        map.getContainer().style.cursor = 'crosshair';
+        pickFromBtn.style.background = '#7c3aed';
+        pickFromBtn.style.color = '#fff';
+        pickToBtn.style.background = '#ede9fe';
+        pickToBtn.style.color = '#6d28d9';
+      } else if (mode === 'to') {
+        banner.style.display = 'block';
+        bannerText.textContent = 'Klik peta untuk set TUJUAN — klik lagi tombol untuk batal';
+        map.getContainer().style.cursor = 'crosshair';
+        pickToBtn.style.background = '#7c3aed';
+        pickToBtn.style.color = '#fff';
+        pickFromBtn.style.background = '#ede9fe';
+        pickFromBtn.style.color = '#6d28d9';
+      } else {
+        banner.style.display = 'none';
+        map.getContainer().style.cursor = '';
+        pickFromBtn.style.background = '#ede9fe';
+        pickFromBtn.style.color = '#6d28d9';
+        pickToBtn.style.background = '#ede9fe';
+        pickToBtn.style.color = '#6d28d9';
+      }
+    }
+
+    document.getElementById('routeCardToggle').addEventListener('click', () => {
+      const body = document.getElementById('routeCardBody');
+      const icon = document.getElementById('routeCardIcon');
+      body.classList.toggle('open');
+      icon.classList.toggle('open', body.classList.contains('open'));
+      if (!body.classList.contains('open')) setRoutePickMode(null);
+    });
+
+    // Pick FROM (start) from map button
+    document.getElementById('routePickFromBtn').addEventListener('click', () => {
+      if (routePickMode === 'from') { setRoutePickMode(null); return; }
+      setRoutePickMode('from');
+      loadStatus.textContent = '🖱️ Klik titik di peta sebagai TITIK AWAL';
+    });
+
+    // Pick TO (destination) from map button
+    document.getElementById('routePickToBtn').addEventListener('click', () => {
+      if (routePickMode === 'to') { setRoutePickMode(null); return; }
+      setRoutePickMode('to');
+      loadStatus.textContent = '🖱️ Klik titik di peta sebagai TUJUAN';
+    });
+
+    // Use my GPS location as start
+    document.getElementById('routeUseMyLocation').addEventListener('click', () => {
+      setRoutePickMode(null);
+      if (!navigator.geolocation) { loadStatus.textContent = 'Geolocation tidak didukung'; return; }
+      loadStatus.textContent = '📍 Mendapatkan lokasi Anda...';
+      navigator.geolocation.getCurrentPosition((pos) => {
+        const { latitude, longitude } = pos.coords;
+        setRouteFrom(latitude, longitude, '📍 Lokasi Saya');
+        if (locationMarker) map.removeLayer(locationMarker);
+        locationMarker = L.circleMarker([latitude, longitude], {
+          radius: 9, color: '#2563eb', weight: 2, fillColor: '#60a5fa', fillOpacity: 0.95
+        }).addTo(map).bindPopup('📍 <b>Lokasi Anda</b>').openPopup();
+        map.setView([latitude, longitude], 15, { animate: true });
+        loadStatus.textContent = '✅ Titik awal: Lokasi Saya';
+      }, () => { loadStatus.textContent = 'Izin lokasi ditolak'; }, { enableHighAccuracy: true, timeout: 10000 });
+    });
+
+    document.getElementById('routeGoBtn').addEventListener('click', fetchRoute);
+    document.getElementById('routeClearBtn').addEventListener('click', () => {
+      setRoutePickMode(null);
+      clearRoute();
+    });
+
+    // Map click handler — respects pick mode
+    map.on('click', (e) => {
+      const body = document.getElementById('routeCardBody');
+      if (!body.classList.contains('open')) return;
+      if (routePickMode === 'from') {
+        const label = `${e.latlng.lat.toFixed(5)}, ${e.latlng.lng.toFixed(5)}`;
+        setRouteFrom(e.latlng.lat, e.latlng.lng, label);
+        if (routeMarkerFrom) map.removeLayer(routeMarkerFrom);
+        routeMarkerFrom = L.circleMarker([e.latlng.lat, e.latlng.lng], {
+          radius: 8, color: '#7c3aed', weight: 2, fillColor: '#a78bfa', fillOpacity: 1
+        }).addTo(map).bindPopup('📍 <b>Titik Awal</b>').openPopup();
+        loadStatus.textContent = '✅ Titik awal dipilih dari peta';
+        setRoutePickMode(null);
+      } else if (routePickMode === 'to') {
+        const label = `${e.latlng.lat.toFixed(5)}, ${e.latlng.lng.toFixed(5)}`;
+        setRouteTo(e.latlng.lat, e.latlng.lng, label);
+        if (routeMarkerTo) map.removeLayer(routeMarkerTo);
+        routeMarkerTo = L.marker([e.latlng.lat, e.latlng.lng]).addTo(map)
+          .bindPopup('🏁 <b>Tujuan</b>').openPopup();
+        loadStatus.textContent = '✅ Tujuan dipilih dari peta';
+        setRoutePickMode(null);
+      }
+    });
+
+    // Helper: extract latlng + name from layer click
+    function handleLayerClickForRoute(e, defaultName) {
+      if (!e.layer) return;
+      const p = e.layer.feature?.properties || {};
+      let lat, lng;
+      if (e.layer.getLatLng) { const ll = e.layer.getLatLng(); lat = ll.lat; lng = ll.lng; }
+      else if (e.layer.getBounds) { const c = e.layer.getBounds().getCenter(); lat = c.lat; lng = c.lng; }
+      if (lat === undefined) return;
+      const name = p.name || defaultName;
+      const body = document.getElementById('routeCardBody');
+      const icon = document.getElementById('routeCardIcon');
+      if (routePickMode === 'from') {
+        setRouteFrom(lat, lng, name);
+        if (routeMarkerFrom) map.removeLayer(routeMarkerFrom);
+        routeMarkerFrom = L.circleMarker([lat, lng], {
+          radius: 8, color: '#7c3aed', weight: 2, fillColor: '#a78bfa', fillOpacity: 1
+        }).addTo(map).bindPopup(`📍 <b>Titik Awal:</b> ${name}`).openPopup();
+        loadStatus.textContent = `✅ Titik awal: ${name}`;
+        setRoutePickMode(null);
+      } else {
+        setRouteTo(lat, lng, name);
+        if (!body.classList.contains('open')) { body.classList.add('open'); icon.classList.add('open'); }
+        loadStatus.textContent = `🏁 Tujuan dipilih: ${name}`;
+        setRoutePickMode(null);
+      }
+    }
+
+    // Patch GeoJSON layers — supports both pick modes
+    restaurantLayer.on('click', (e) => handleLayerClickForRoute(e, 'Restoran'));
+    tourismLayer.on('click', (e) => handleLayerClickForRoute(e, 'Tempat Wisata'));
+
+    locateBtn.addEventListener("click", locateMe);
+    mapRoadBtn.addEventListener("click", () => setActiveMapStyle("road"));
+    mapSatelliteBtn.addEventListener("click", () => setActiveMapStyle("satellite"));
+    mapHybridBtn.addEventListener("click", () => setActiveMapStyle("hybrid"));
+
+    themeToggleBtn.addEventListener("click", () => {
+      applyTheme(!isDarkTheme);
+    });
+
+    // === COORDINATE BAR ===
+    const coordLat = document.getElementById("coordLat");
+    const coordLng = document.getElementById("coordLng");
+    const coordZoom = document.getElementById("coordZoom");
+    map.on("mousemove", (e) => {
+      coordLat.textContent = e.latlng.lat.toFixed(5);
+      coordLng.textContent = e.latlng.lng.toFixed(5);
+    });
+    map.on("zoomend", () => { coordZoom.textContent = map.getZoom(); });
+
+    // === FULLSCREEN ===
+    const btnFullscreen = document.getElementById("btnFullscreen");
+    btnFullscreen.addEventListener("click", () => {
+      if (!document.fullscreenElement) {
+        document.documentElement.requestFullscreen();
+        btnFullscreen.textContent = "✖";
+      } else {
+        document.exitFullscreen();
+        btnFullscreen.textContent = "⛶";
+      }
+    });
+    document.addEventListener("fullscreenchange", () => {
+      if (!document.fullscreenElement) btnFullscreen.textContent = "⛶";
+    });
+
+    // === ZOOM TO FIT ===
+    document.getElementById("btnFitBounds").addEventListener("click", () => {
+      const group = L.featureGroup([restaurantLayer, roadLayer, tourismLayer]);
+      if (group.getLayers().length > 0) {
+        map.fitBounds(group.getBounds(), { padding: [30, 30], animate: true });
+      }
+    });
+
+    // === HEATMAP ===
+    function buildHeatmap() {
+      if (heatLayer) { map.removeLayer(heatLayer); heatLayer = null; }
+      const pts = [];
+      restaurantLayer.eachLayer((l) => {
+        const ll = l.getLatLng ? l.getLatLng() : null;
+        if (ll) pts.push([ll.lat, ll.lng, 0.6]);
+      });
+      if (pts.length === 0) return;
+      heatLayer = L.heatLayer(pts, { radius: 20, blur: 18, maxZoom: 16, gradient: { 0.3: "#43a047", 0.6: "#f9a825", 1.0: "#e53935" } }).addTo(map);
+    }
+    const btnHeatmap = document.getElementById("btnHeatmap");
+    btnHeatmap.addEventListener("click", () => {
+      heatmapActive = !heatmapActive;
+      btnHeatmap.classList.toggle("active", heatmapActive);
+      if (heatmapActive) { buildHeatmap(); }
+      else if (heatLayer) { map.removeLayer(heatLayer); heatLayer = null; }
+    });
+
+    // === EXPORT CSV ===
+    document.getElementById("btnExportCsv").addEventListener("click", () => {
+      const rows = [["kategori", "nama", "amenity", "highway", "tourism", "lat", "lng", "osm_id"]];
+      restaurantLayer.eachLayer((l) => {
+        const p = l.feature?.properties || {};
+        const ll = l.getLatLng ? l.getLatLng() : { lat: "", lng: "" };
+        rows.push(["restoran", p.name || "", p.amenity || "", "", "", ll.lat, ll.lng, p.osm_id || ""]);
+      });
+      roadLayer.eachLayer((l) => {
+        const p = l.feature?.properties || {};
+        rows.push(["jalan", p.name || "", "", p.highway || "", "", "", "", p.osm_id || ""]);
+      });
+      tourismLayer.eachLayer((l) => {
+        const p = l.feature?.properties || {};
+        const ll = l.getLatLng ? l.getLatLng() : { lat: "", lng: "" };
+        rows.push(["wisata", p.name || "", "", "", p.tourism || "", ll.lat, ll.lng, p.osm_id || ""]);
+      });
+      const csv = rows.map(r => r.map(v => `"${String(v).replace(/"/g, '""')}"`).join(",")).join("\n");
+      const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a"); a.href = url; a.download = "rome_webgis_data.csv";
+      a.click(); URL.revokeObjectURL(url);
+      loadStatus.textContent = `CSV diekspor (${rows.length - 1} baris)`;
+    });
+
+    setActiveMapStyle("road");
+    loadSavedTheme();
+    updateFilterBadge();
+    tryLoadDefaultGeojson();
+
+    // ===== SPLASH SCREEN =====
+    (function initSplash() {
+      const splash = document.getElementById('splashScreen');
+      const canvas = document.getElementById('splashStars');
+      const ctx = canvas.getContext('2d');
+
+      function resizeCanvas() {
+        canvas.width = window.innerWidth;
+        canvas.height = window.innerHeight;
+      }
+      resizeCanvas();
+      window.addEventListener('resize', resizeCanvas);
+
+      // Draw twinkling stars
+      const stars = Array.from({ length: 120 }, () => ({
+        x: Math.random(), y: Math.random(),
+        r: Math.random() * 1.5 + 0.3,
+        a: Math.random(),
+        speed: Math.random() * 0.015 + 0.005
+      }));
+      let rafId;
+      function drawStars() {
+        if (!canvas.parentElement) return;
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+        stars.forEach(s => {
+          s.a += s.speed;
+          const alpha = 0.3 + 0.7 * Math.abs(Math.sin(s.a));
+          ctx.beginPath();
+          ctx.arc(s.x * canvas.width, s.y * canvas.height, s.r, 0, Math.PI * 2);
+          ctx.fillStyle = `rgba(200,210,255,${alpha})`;
+          ctx.fill();
+        });
+        rafId = requestAnimationFrame(drawStars);
+      }
+      drawStars();
+
+      function dismissSplash() {
+        cancelAnimationFrame(rafId);
+        splash.classList.add('fade-out');
+        setTimeout(() => splash.classList.add('hidden'), 750);
+      }
+
+      document.getElementById('splashSkip').addEventListener('click', dismissSplash);
+      // Auto dismiss after 3.5s
+      setTimeout(dismissSplash, 3500);
+    })();
+
+    // ===== MUSIC PLAYER =====
+    (function initMusic() {
+      const audio = document.getElementById('bgMusic');
+      const playBtn = document.getElementById('musicPlayBtn');
+      const volSlider = document.getElementById('musicVolSlider');
+      const eqBars = document.getElementById('eqBars');
+      const player = document.getElementById('musicPlayer');
+      const toggleBtn = document.getElementById('musicToggleBtn');
+      let isPlaying = false;
+      let playerVisible = false;
+
+      // Set initial volume
+      audio.volume = 0.4;
+
+      function setPlaying(play) {
+        isPlaying = play;
+        if (play) {
+          audio.play().catch(() => { });
+          playBtn.textContent = '\u23F8\uFE0F';
+          eqBars.classList.remove('paused');
+        } else {
+          audio.pause();
+          playBtn.textContent = '\u25B6\uFE0F';
+          eqBars.classList.add('paused');
+        }
+      }
+
+      function showPlayer(show) {
+        playerVisible = show;
+        player.classList.toggle('hidden-player', !show);
+        toggleBtn.textContent = show ? '\uD83D\uDD07' : '\uD83C\uDFB5';
+      }
+
+      playBtn.addEventListener('click', () => setPlaying(!isPlaying));
+
+      volSlider.addEventListener('input', () => {
+        const vol = parseInt(volSlider.value) / 100;
+        audio.volume = vol;
+        const icon = document.querySelector('.music-vol-icon');
+        if (vol === 0) icon.textContent = '\uD83D\uDD07';
+        else if (vol < 0.4) icon.textContent = '\uD83D\uDD08';
+        else icon.textContent = '\uD83D\uDD0A';
+      });
+
+      toggleBtn.addEventListener('click', () => {
+        showPlayer(!playerVisible);
+        // Auto-play when player is shown for the first time
+        if (playerVisible && !isPlaying) setPlaying(true);
+      });
+
+      // Show player after splash (3.6s)
+      setTimeout(() => showPlayer(true), 3600);
+    })();
+  </script>
+
+  <!-- ========== CHATBOT ========== -->
+  <!-- Floating Toggle Button -->
+  <button id="chatbotToggle" title="Chat dengan AI Asisten Roma">
+    🤖
+    <span class="chat-badge" id="chatBadge">1</span>
+  </button>
+
+  <!-- Chat Panel -->
+  <div id="chatbotPanel" class="hidden">
+    <!-- Header -->
+    <div class="chat-header">
+      <div class="chat-header-avatar">🗺️</div>
+      <div class="chat-header-info">
+        <div class="chat-header-name">Roma AI Assistant</div>
+        <div class="chat-header-status">
+          <span class="chat-status-dot" id="chatStatusDot"></span>
+          <span id="chatStatusText">Online · Siap membantu</span>
+        </div>
+      </div>
+      <button class="chat-header-close" id="chatClose" title="Tutup chat">✕</button>
+    </div>
+
+    <!-- API Key Config removed — Ollama tidak butuh API key! -->
+    <!-- Ollama Model Info Badge -->
+    <div class="chat-model-badge" id="chatModelBadge">
+      🦙 llama3.2 · lokal
+    </div>
+
+    <!-- Messages -->
+    <div class="chat-messages" id="chatMessages">
+      <!-- Welcome message injected by JS -->
+    </div>
+
+    <!-- Typing Indicator -->
+    <div class="chat-typing" id="chatTyping">
+      <span class="typing-dot"></span>
+      <span class="typing-dot"></span>
+      <span class="typing-dot"></span>
+    </div>
+
+    <!-- Quick Reply Chips -->
+    <div class="chat-quick-replies" id="chatQuickReplies">
+      <button class="chat-quick-btn" data-msg="Rekomendasikan restoran pizza terbaik di Roma">🍕 Pizza terbaik</button>
+      <button class="chat-quick-btn" data-msg="Apa saja tempat wisata wajib di Roma?">🏛️ Wisata wajib</button>
+      <button class="chat-quick-btn" data-msg="Bagaimana cara menggunakan fitur routing di peta ini?">🗺️ Cara
+        routing</button>
+      <button class="chat-quick-btn" data-msg="Apa makanan khas Roma yang harus dicoba?">🍝 Kuliner khas</button>
+    </div>
+
+    <!-- Input Row -->
+    <div class="chat-input-row">
+      <textarea id="chatInput" rows="1" placeholder="Tanya tentang Roma, restoran, wisata..."></textarea>
+      <button id="chatSendBtn" title="Kirim">➤</button>
+    </div>
+  </div>
+
+  <script>
+    /* ==================== CHATBOT SCRIPT (Ollama) ==================== */
+    (function () {
+      const BACKEND_URL = 'http://localhost:5000/chat';
+      const HEALTH_URL = 'http://localhost:5000/health';
+      const MAX_HISTORY = 20;
+
+      const toggleBtn = document.getElementById('chatbotToggle');
+      const panel = document.getElementById('chatbotPanel');
+      const closeBtn = document.getElementById('chatClose');
+      const messagesEl = document.getElementById('chatMessages');
+      const inputEl = document.getElementById('chatInput');
+      const sendBtn = document.getElementById('chatSendBtn');
+      const typingEl = document.getElementById('chatTyping');
+      const quickReplies = document.getElementById('chatQuickReplies');
+      const badge = document.getElementById('chatBadge');
+      const statusDot = document.getElementById('chatStatusDot');
+      const statusText = document.getElementById('chatStatusText');
+      const modelBadge = document.getElementById('chatModelBadge');
+
+      let chatOpen = false;
+      let isLoading = false;
+      let conversationHistory = [];
+      let hasUnread = false;
+      let currentModel = 'llama3.2';
+
+      // ---- Status ----
+      function setStatus(state, label) {
+        if (state === 'online') {
+          statusDot.style.background = '#4ade80';
+          statusText.textContent = label || 'Online · Siap membantu';
+        } else if (state === 'typing') {
+          statusDot.style.background = '#fbbf24';
+          statusText.textContent = 'Sedang mengetik...';
+        } else if (state === 'error') {
+          statusDot.style.background = '#f87171';
+          statusText.textContent = label || 'Ollama tidak tersedia';
+        } else {
+          statusDot.style.background = '#94a3b8';
+          statusText.textContent = label || 'Menghubungkan...';
+        }
+      }
+
+      // ---- Health Check Ollama ----
+      async function checkOllamaHealth() {
+        try {
+          // Gunakan AbortController — kompatibel semua browser
+          const controller = new AbortController();
+          const timer = setTimeout(() => controller.abort(), 5000);
+
+          const res = await fetch(HEALTH_URL, { signal: controller.signal });
+          clearTimeout(timer);
+
+          if (res.ok) {
+            const data = await res.json();
+            console.log('[Chatbot] Health check:', data);
+            if (data.ollama_running) {
+              // Pakai model pertama yang tersedia jika default tidak cocok persis
+              const available = data.available_models || [];
+              const defaultModel = data.default_model || 'llama3.2';
+              // Cari match exact atau prefix match (llama3.2 → llama3.2:latest)
+              const matched = available.find(m =>
+                m === defaultModel || m.startsWith(defaultModel + ':')
+              ) || available[0] || defaultModel;
+              currentModel = matched;
+              modelBadge.textContent = `🦙 ${currentModel} · lokal`;
+              setStatus('online', `Online · ${currentModel}`);
+              return true;
+            } else {
+              setStatus('error', 'Ollama tidak berjalan');
+              modelBadge.textContent = '⚠️ Ollama offline';
+              return false;
+            }
+          } else {
+            setStatus('error', 'Server error');
+            modelBadge.textContent = '⚠️ Server error';
+            return false;
+          }
+        } catch (e) {
+          console.warn('[Chatbot] Health check gagal:', e.message);
+          if (e.name === 'AbortError') {
+            setStatus('error', 'Server timeout');
+            modelBadge.textContent = '⚠️ Timeout';
+          } else {
+            setStatus('error', 'Server tidak ditemukan');
+            modelBadge.textContent = '⚠️ Server offline';
+          }
+          return false;
+        }
+      }
+
+      // ---- Toggle Panel ----
+      toggleBtn.addEventListener('click', () => {
+        chatOpen = !chatOpen;
+        panel.classList.toggle('hidden', !chatOpen);
+        if (chatOpen) {
+          badge.classList.remove('show');
+          hasUnread = false;
+          setTimeout(() => inputEl.focus(), 350);
+        }
+      });
+
+      closeBtn.addEventListener('click', () => {
+        chatOpen = false;
+        panel.classList.add('hidden');
+      });
+
+      // ---- Add Message Bubble ----
+      function addMessage(role, content) {
+        const now = new Date().toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' });
+        const bubble = document.createElement('div');
+        bubble.className = `chat-bubble ${role}`;
+
+        // Simple markdown: **bold**, newlines → <br>, `code`
+        const formatted = content
+          .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
+          .replace(/`(.*?)`/g, '<code style="background:rgba(0,0,0,0.08);padding:1px 4px;border-radius:4px;font-size:11px">$1</code>')
+          .replace(/\n/g, '<br>');
+
+        bubble.innerHTML = `
+          <div>${formatted}</div>
+          <div class="chat-bubble-time">${now}</div>
+        `;
+        messagesEl.appendChild(bubble);
+        messagesEl.scrollTop = messagesEl.scrollHeight;
+
+        if (role === 'bot' && !chatOpen) {
+          hasUnread = true;
+          badge.classList.add('show');
+        }
+        return bubble;
+      }
+
+      // ---- Send Message ----
+      async function sendMessage(text) {
+        if (!text.trim() || isLoading) return;
+
+        addMessage('user', text);
+        conversationHistory.push({ role: 'user', content: text });
+
+        if (conversationHistory.length > MAX_HISTORY * 2) {
+          conversationHistory = conversationHistory.slice(-MAX_HISTORY * 2);
+        }
+
+        inputEl.value = '';
+        inputEl.style.height = 'auto';
+        inputEl.disabled = true;
+        sendBtn.disabled = true;
+        isLoading = true;
+
+        typingEl.classList.add('show');
+        messagesEl.scrollTop = messagesEl.scrollHeight;
+        setStatus('typing');
+
+        try {
+          const res = await fetch(BACKEND_URL, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              messages: conversationHistory,
+              model: currentModel
+            })
+          });
+
+          typingEl.classList.remove('show');
+
+          if (!res.ok) {
+            const err = await res.json().catch(() => ({ error: `HTTP ${res.status}` }));
+            addMessage('error', `❌ ${err.error || 'Gagal mendapat respons'}`);
+            setStatus('online');
+          } else {
+            const data = await res.json();
+            const reply = data.reply || 'Maaf, tidak ada respons.';
+            addMessage('bot', reply);
+            conversationHistory.push({ role: 'assistant', content: reply });
+            setStatus('online', `Online · ${data.model || currentModel}`);
+          }
+        } catch (e) {
+          typingEl.classList.remove('show');
+          const isConn = e.message && (e.message.includes('fetch') || e.message.includes('Failed') || e.message.includes('network'));
+          if (isConn) {
+            addMessage('error', '❌ **Server chatbot tidak berjalan.**\n\nJalankan di terminal:\n`python chatbot.py`\n\nPastikan Ollama juga sudah berjalan.');
+          } else {
+            addMessage('error', `❌ Error: ${e.message}`);
+          }
+          setStatus('error', 'Koneksi gagal');
+        } finally {
+          inputEl.disabled = false;
+          sendBtn.disabled = false;
+          isLoading = false;
+          inputEl.focus();
+        }
+      }
+
+      // ---- Input Events ----
+      sendBtn.addEventListener('click', () => sendMessage(inputEl.value));
+
+      inputEl.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter' && !e.shiftKey) {
+          e.preventDefault();
+          sendMessage(inputEl.value);
+        }
+      });
+
+      inputEl.addEventListener('input', () => {
+        inputEl.style.height = 'auto';
+        inputEl.style.height = Math.min(inputEl.scrollHeight, 80) + 'px';
+      });
+
+      quickReplies.querySelectorAll('.chat-quick-btn').forEach(btn => {
+        btn.addEventListener('click', () => sendMessage(btn.getAttribute('data-msg')));
+      });
+
+      // ---- Welcome + Init ----
+      async function init() {
+        setStatus('connecting', 'Menghubungkan ke Ollama...');
+        const ok = await checkOllamaHealth();
+        if (ok) {
+          addMessage('bot', `👋 Halo! Saya **Roma AI Assistant** — didukung oleh **${currentModel}** yang berjalan lokal di komputer Anda.\n\n🍕 Rekomendasi restoran & kuliner\n🏛️ Info tempat wisata Roma\n🗺️ Cara menggunakan fitur peta\n\nAda yang ingin Anda ketahui?`);
+        } else {
+          addMessage('error', '⚠️ **Ollama tidak terdeteksi.**\n\nLangkah setup:\n1. Download **Ollama** di ollama.com\n2. Jalankan: `ollama pull llama3.2`\n3. Jalankan: `python chatbot.py`\n4. Refresh halaman ini');
+        }
+      }
+
+      init();
+
+      // Badge hint setelah splash selesai
+      setTimeout(() => {
+        if (!chatOpen && !hasUnread) {
+          badge.classList.add('show');
+          hasUnread = true;
+        }
+      }, 3500);
+
+    })();
+  </script>
+</body>
+
+</html>
