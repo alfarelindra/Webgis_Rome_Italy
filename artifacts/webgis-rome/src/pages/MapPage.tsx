@@ -13,11 +13,12 @@ import BookmarkPanel, { type BookmarkItem } from "@/components/BookmarkPanel";
 import StatisticsPanel, { type CategoryStat } from "@/components/StatisticsPanel";
 import NearbyPanel, { type NearbyResult } from "@/components/NearbyPanel";
 import ChatPanel from "@/components/ChatPanel";
+import RoutingPanel, { type RouteResult, type RoutingPoint } from "@/components/RoutingPanel";
 import romeGeoJsonRaw from "@assets/rome_filtered.geojson?raw";
 import {
   MapPin, ZoomIn, ZoomOut, Locate, Download,
   Maximize2, Minimize2, Home, Share2, Star, Sun, Moon, Satellite,
-  Flame, BarChart2, Target,
+  Flame, BarChart2, Target, Navigation,
 } from "lucide-react";
 
 delete (L.Icon.Default.prototype as unknown as Record<string, unknown>)._getIconUrl;
@@ -179,6 +180,9 @@ export default function MapPage() {
   const heatPointsRef = useRef<[number, number, number][]>([]);
   const nearbyCircleRef = useRef<L.Circle | null>(null);
   const nearbyCenterMarkerRef = useRef<L.Marker | null>(null);
+  const routeLayerRef = useRef<L.Polyline | null>(null);
+  const routeFromMarkerRef = useRef<L.Marker | null>(null);
+  const routeToMarkerRef = useRef<L.Marker | null>(null);
 
   const [searchQuery, setSearchQuery] = useState("");
   const [layers, setLayers] = useState<Record<LayerKey, boolean>>({
@@ -208,6 +212,8 @@ export default function MapPage() {
   const [nearbyCenter, setNearbyCenter] = useState<[number, number] | null>(null);
   const [nearbyRadius, setNearbyRadius] = useState(500);
   const [nearbyResults, setNearbyResults] = useState<NearbyResult[]>([]);
+  const [showRouting, setShowRouting] = useState(false);
+  const [userLocation, setUserLocation] = useState<{ lat: number; lng: number } | null>(null);
 
   // Init map
   useEffect(() => {
@@ -482,11 +488,66 @@ export default function MapPage() {
         const m = L.marker([latitude, longitude], { icon: createGpsMarker() });
         if (mapRef.current) { m.addTo(mapRef.current); mapRef.current.flyTo([latitude, longitude], 16, { animate: true }); }
         gpsMarkerRef.current = m;
+        setUserLocation({ lat: latitude, lng: longitude });
         setGpsActive(false);
       },
       () => setGpsActive(false),
       { enableHighAccuracy: true, timeout: 10000 }
     );
+  }, []);
+
+  const handleRouteResult = useCallback((result: RouteResult | null, from: RoutingPoint | null, to: RoutingPoint | null) => {
+    const map = mapRef.current;
+    if (!map) return;
+    // Clear old route layers
+    if (routeLayerRef.current) { map.removeLayer(routeLayerRef.current); routeLayerRef.current = null; }
+    if (routeFromMarkerRef.current) { map.removeLayer(routeFromMarkerRef.current); routeFromMarkerRef.current = null; }
+    if (routeToMarkerRef.current) { map.removeLayer(routeToMarkerRef.current); routeToMarkerRef.current = null; }
+    if (!result || !from || !to) return;
+
+    // Draw route polyline
+    routeLayerRef.current = L.polyline(result.geometry, {
+      color: "#5b8fa8",
+      weight: 5,
+      opacity: 0.85,
+      lineJoin: "round",
+      lineCap: "round",
+      dashArray: undefined,
+    }).addTo(map);
+
+    // Animated border (outline effect)
+    L.polyline(result.geometry, {
+      color: "rgba(91,143,168,0.25)",
+      weight: 10,
+      opacity: 1,
+      lineJoin: "round",
+      lineCap: "round",
+    }).addTo(map);
+
+    // From marker (blue)
+    routeFromMarkerRef.current = L.marker([from.lat, from.lng], {
+      icon: L.divIcon({
+        html: `<div style="width:14px;height:14px;border-radius:50%;background:#5b8fa8;border:3px solid rgba(255,255,255,0.9);box-shadow:0 2px 8px rgba(0,0,0,0.5)"></div>`,
+        className: "",
+        iconSize: [14, 14],
+        iconAnchor: [7, 7],
+      }),
+      zIndexOffset: 2000,
+    }).bindPopup(`<div style="font-size:12px;color:#e0d8cc;font-weight:600">📍 ${from.name}</div>`, { closeButton: false }).addTo(map);
+
+    // To marker (terracotta)
+    routeToMarkerRef.current = L.marker([to.lat, to.lng], {
+      icon: L.divIcon({
+        html: `<div style="width:14px;height:14px;border-radius:50%;background:#c0623a;border:3px solid rgba(255,255,255,0.9);box-shadow:0 2px 8px rgba(0,0,0,0.5)"></div>`,
+        className: "",
+        iconSize: [14, 14],
+        iconAnchor: [7, 7],
+      }),
+      zIndexOffset: 2000,
+    }).bindPopup(`<div style="font-size:12px;color:#e0d8cc;font-weight:600">🏁 ${to.name}</div>`, { closeButton: false }).addTo(map);
+
+    // Fit bounds with padding
+    map.flyToBounds(routeLayerRef.current.getBounds(), { animate: true, duration: 1.0, padding: [60, 60] });
   }, []);
 
   const handleExport = useCallback(() => {
@@ -598,6 +659,19 @@ export default function MapPage() {
 
           <LayerControl layers={layers} onToggle={handleLayerToggle} subLayers={subLayers} onSubToggle={handleSubToggle} />
 
+          {/* Routing Panel */}
+          {showRouting && (
+            <RoutingPanel
+              suggestions={locationSuggestions}
+              onRouteResult={handleRouteResult}
+              onClose={() => {
+                setShowRouting(false);
+                handleRouteResult(null, null, null);
+              }}
+              userLocation={userLocation}
+            />
+          )}
+
           {/* Floating left panels — only one shown at a time */}
           {showStats && (
             <StatisticsPanel
@@ -706,6 +780,23 @@ export default function MapPage() {
               }}
             >
               <Target size={15} />
+            </button>
+
+            {/* Routing toggle */}
+            <button
+              onClick={() => setShowRouting((v) => !v)}
+              title="Navigasi rute A ke B"
+              data-testid="button-routing"
+              className="w-9 h-9 rounded-xl flex items-center justify-center transition-all"
+              style={{
+                background: showRouting ? "linear-gradient(135deg,#c0623a88,#5b8fa888)" : "rgba(20,16,12,0.9)",
+                backdropFilter: "blur(12px)",
+                border: showRouting ? "1px solid rgba(91,143,168,0.55)" : "1px solid rgba(255,255,255,0.08)",
+                boxShadow: showRouting ? "0 4px 14px rgba(192,98,58,0.35)" : "0 4px 12px rgba(0,0,0,0.5)",
+                color: showRouting ? "#c8f0ff" : "#c8bfb2",
+              }}
+            >
+              <Navigation size={15} />
             </button>
           </div>
 
