@@ -1,20 +1,28 @@
 {
+  "buildCommand": "pnpm --filter @workspace/webgis-rome build",
+  "outputDirectory": "artifacts/webgis-rome/dist/public",
+  "installCommand": "pnpm install --ignore-scripts",
+  "framework": null,
   "rewrites": [
-    { "source": "/", "destination": "/foodmap.html" }
+    { "source": "/(.*)", "destination": "/index.html" }
   ],
   "headers": [
     {
-      "source": "/(.*)",
+      "source": "/assets/(.*)",
       "headers": [
         { "key": "Cache-Control", "value": "public, max-age=31536000, immutable" }
       ]
     },
     {
-      "source": "/italy_rome.geojson",
+      "source": "/(.*\\.geojson)",
       "headers": [
         { "key": "Cache-Control", "value": "public, max-age=86400" },
         { "key": "Content-Type", "value": "application/json" }
       ]
     }
-  ]
+  ],
+  "env": {
+    "PORT": "3000",
+    "BASE_PATH": "/"
+  }
 }
