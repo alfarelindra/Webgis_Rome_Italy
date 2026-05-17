@@ -66,6 +66,30 @@ export default function WeatherWidget({ locationOpen = false }: WeatherWidgetPro
   // LocationPanel = w-72 (288px) + right-4 (16px) = 304px from right + 8px gap
   const rightOffset = locationOpen ? 312 : 16;
 
+  // ── Real-time Rome clock ──────────────────────────────────────────
+  const [romeTime, setRomeTime] = useState(() => new Date());
+
+  useEffect(() => {
+    const id = setInterval(() => setRomeTime(new Date()), 1000);
+    return () => clearInterval(id);
+  }, []);
+
+  const romeFmt = new Intl.DateTimeFormat("id-ID", {
+    timeZone: "Europe/Rome",
+    hour: "2-digit",
+    minute: "2-digit",
+    second: "2-digit",
+    hour12: false,
+  });
+  const romeDateFmt = new Intl.DateTimeFormat("id-ID", {
+    timeZone: "Europe/Rome",
+    weekday: "short",
+    day: "numeric",
+    month: "short",
+  });
+  const timeStr = romeFmt.format(romeTime);   // e.g. "21:15:42"
+  const dateStr = romeDateFmt.format(romeTime); // e.g. "Sab, 17 Mei"
+
   const fetchWeather = useCallback(async () => {
     setLoading(true);
     setError(false);
@@ -131,13 +155,35 @@ export default function WeatherWidget({ locationOpen = false }: WeatherWidgetPro
           onClick={() => setExpanded((v) => !v)}
           data-testid="button-weather-toggle"
         >
-          <div className="flex items-center gap-2">
-            {/* Location pin */}
-            <div
-              className="text-[10px] font-bold uppercase tracking-wider px-1.5 py-0.5 rounded"
-              style={{ background: "rgba(192,98,58,0.15)", color: "#c0623a", border: "1px solid rgba(192,98,58,0.25)" }}
-            >
-              📍 Roma
+          <div className="flex flex-col gap-0.5">
+            {/* Location badge */}
+            <div className="flex items-center gap-1.5">
+              <div
+                className="text-[10px] font-bold uppercase tracking-wider px-1.5 py-0.5 rounded"
+                style={{ background: "rgba(192,98,58,0.15)", color: "#c0623a", border: "1px solid rgba(192,98,58,0.25)" }}
+              >
+                📍 Roma
+              </div>
+              {/* Timezone badge */}
+              <div
+                className="text-[9px] px-1 py-0.5 rounded font-medium"
+                style={{ background: "rgba(255,255,255,0.05)", color: "#4a3e36", border: "1px solid rgba(255,255,255,0.06)" }}
+              >
+                CET
+              </div>
+            </div>
+            {/* Live clock */}
+            <div className="flex items-baseline gap-1.5">
+              <span
+                className="text-[18px] font-bold tabular-nums leading-none tracking-tight"
+                style={{ color: "#e8ddd0", fontVariantNumeric: "tabular-nums" }}
+              >
+                {timeStr}
+              </span>
+            </div>
+            {/* Date */}
+            <div className="text-[10px] capitalize" style={{ color: "#5a4e46" }}>
+              {dateStr}
             </div>
           </div>
 
