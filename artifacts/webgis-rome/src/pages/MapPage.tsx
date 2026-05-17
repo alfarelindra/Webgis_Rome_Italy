@@ -734,7 +734,7 @@ export default function MapPage() {
 
           <ChatPanel />
           <MusicPlayer />
-          <WeatherWidget />
+          <WeatherWidget locationOpen={!!selectedFeature} />
 
           {/* Right toolbar: Zoom + Fullscreen + Home + Share + Heatmap */}
           <div className="absolute right-4 top-1/2 -translate-y-1/2 z-[1000] flex flex-col gap-2">

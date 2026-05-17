@@ -52,12 +52,19 @@ function visibilityLabel(m: number): string {
   return `${m} m`;
 }
 
-export default function WeatherWidget() {
+interface WeatherWidgetProps {
+  locationOpen?: boolean;
+}
+
+export default function WeatherWidget({ locationOpen = false }: WeatherWidgetProps) {
   const [weather, setWeather]   = useState<WeatherData | null>(null);
   const [loading, setLoading]   = useState(true);
   const [error, setError]       = useState(false);
   const [expanded, setExpanded] = useState(false);
   const [lastUpdate, setLastUpdate] = useState<Date | null>(null);
+
+  // LocationPanel = w-72 (288px) + right-4 (16px) = 304px from right + 8px gap
+  const rightOffset = locationOpen ? 312 : 16;
 
   const fetchWeather = useCallback(async () => {
     setLoading(true);
@@ -96,8 +103,12 @@ export default function WeatherWidget() {
 
   return (
     <div
-      className="absolute top-16 right-4 z-[1000]"
-      style={{ width: "200px" }}
+      className="absolute top-16 z-[1000]"
+      style={{
+        width: "200px",
+        right: `${rightOffset}px`,
+        transition: "right 0.35s cubic-bezier(0.4, 0, 0.2, 1)",
+      }}
       data-testid="weather-widget"
     >
       <div
