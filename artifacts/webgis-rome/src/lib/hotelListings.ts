@@ -106,12 +106,12 @@ export const HOTEL_LISTINGS: HotelListing[] = [
     rating: 4.82,
     reviewCount: 318,
     images: [
+      hotelImg("cover-piram.jpg", "Lobby mewah dengan lantai marmer Italia & lampu gantung klasik"),
       hotelImg("hotel-piram-1.jpg", "Kamar deluxe dengan ranjang king & marmer Italia"),
       hotelImg("hotel-piram-2.jpg", "Lobby elegan & area resepsionis"),
       hotelImg("hotel-piram-3.jpg", "Kamar mandi modern dengan shower"),
       hotelImg("hotel-piram-4.jpg", "Kamar mandi premium & amenitas"),
       hotelImg("hotel-piram-5.jpg", "Ruang sarapan bufet pagi"),
-      hotelImg("hotel-piram-6.jpg", "Area duduk & meja kerja di kamar"),
     ],
     host: {
       name: "Marco R.",
@@ -196,11 +196,11 @@ export const HOTEL_LISTINGS: HotelListing[] = [
     rating: 4.91,
     reviewCount: 204,
     images: [
+      hotelImg("cover-rome-art.jpg", "Kamar boutique dengan karya seni kontemporer Roma"),
       hotelImg("rome-art-1.jpg", "Suite artistik dengan dekorasi kontemporer"),
       hotelImg("rome-art-2.jpg", "Kamar dengan headboard custom & lampu desain"),
       hotelImg("rome-art-3.jpg", "Interior boutique & furnitur unik"),
       hotelImg("rome-art-4.jpg", "Kamar mandi elegan dengan bathtub"),
-      hotelImg("rome-art-5.jpg", "Bar lounge & area santai"),
       hotelImg("rome-art-6.jpg", "Eksterior hotel di distrik Prati"),
     ],
     host: {
@@ -276,12 +276,12 @@ export const HOTEL_LISTINGS: HotelListing[] = [
     rating: 4.95,
     reviewCount: 412,
     images: [
-      hotelImg("antico-palazzo-1.jpg", "Fasad & area depan palazzo bersejarah"),
+      hotelImg("cover-antico-palazzo.jpg", "Fasad grand palazzo bersejarah abad ke-17 di Roma"),
+      hotelImg("antico-palazzo-1.jpg", "Eksterior palazzo"),
       hotelImg("antico-palazzo-2.jpg", "Suite mewah dengan tempat tidur premium"),
       hotelImg("antico-palazzo-3.jpg", "Kamar klasik dengan furnitur kayu"),
       hotelImg("antico-palazzo-4.jpg", "Kamar elegan bergaya heritage"),
       hotelImg("antico-palazzo-5.jpg", "Ruang santai & detail interior"),
-      hotelImg("antico-palazzo-6.jpg", "Suasana hangat & pencahayaan lembut"),
     ],
     host: {
       name: "Famiglia Rospigliosi",
@@ -358,12 +358,11 @@ export const HOTEL_LISTINGS: HotelListing[] = [
     rating: 4.88,
     reviewCount: 267,
     images: [
+      hotelImg("cover-mood-suites.jpg", "Apartemen modern minimalis dengan dapur Italia lengkap"),
       hotelImg("mood-suites-1.jpg", "Ruang tamu terbuka dengan dapur Italia"),
       hotelImg("mood-suites-2.jpg", "Kamar tidur utama minimalis"),
       hotelImg("mood-suites-3.jpg", "Kamar mandi modern & shower walk-in"),
       hotelImg("mood-suites-4.jpg", "Kamar kedua / area tidur tambahan"),
-      hotelImg("mood-suites-5.jpg", "Sudut santai & pencahayaan hangat"),
-      hotelImg("mood-suites-6.jpg", "Detail interior apartemen dekat Trevi"),
     ],
     host: {
       name: "Elena M.",
@@ -430,6 +429,7 @@ export const HOTEL_LISTINGS: HotelListing[] = [
     rating: 4.76,
     reviewCount: 156,
     images: [
+      hotelImg("cover-hotel-fenix.jpg", "Kamar nyaman dengan view taman hijau Villa Borghese"),
       hotelImg("hotel-fenix-1.jpg", "Kamar double dengan pencahayaan alami"),
       hotelImg("hotel-fenix-2.jpg", "Kamar nyaman dengan ranjang besar"),
       hotelImg("hotel-fenix-3.jpg", "Area sarapan & ruang bersama"),
@@ -497,8 +497,8 @@ export const HOTEL_LISTINGS: HotelListing[] = [
     rating: 4.79,
     reviewCount: 189,
     images: [
+      hotelImg("cover-hotel-cambridge.jpg", "Bar lounge bergaya Inggris-Italia dengan perpustakaan & whisky"),
       hotelImg("hotel-cambridge-1.jpg", "Kamar superior gaya Inggris-Italia"),
-      hotelImg("hotel-cambridge-2.jpg", "Bar & lounge dengan perpustakaan"),
       hotelImg("hotel-cambridge-3.jpg", "Kamar mandi dengan amenitas premium"),
       hotelImg("hotel-cambridge-4.jpg", "Kamar executive luas & nyaman"),
       hotelImg("hotel-cambridge-5.jpg", "Interior klasik di pusat Roma"),
@@ -564,8 +564,7 @@ export const HOTEL_LISTINGS: HotelListing[] = [
     rating: 4.71,
     reviewCount: 98,
     images: [
-      hotelImg("hotel-la-pergola-1.jpg", "Taman & area outdoor yang rindang"),
-      hotelImg("hotel-la-pergola-2.jpg", "Kamar dengan balkon menghadap taman"),
+      hotelImg("hotel-la-pergola-2.jpg", "Kamar dengan balkon menghadap taman & pergola rindang"),
       hotelImg("hotel-la-pergola-3.jpg", "Interior kamar keluarga yang luas"),
       hotelImg("hotel-la-pergola-4.jpg", "Kamar nyaman dengan ranjang besar"),
       hotelImg("hotel-la-pergola-5.jpg", "Suasana santai di utara Roma"),
@@ -629,8 +628,8 @@ export const HOTEL_LISTINGS: HotelListing[] = [
     rating: 4.93,
     reviewCount: 341,
     images: [
+      hotelImg("trastevere-2.jpg", "Loft artistik dengan bata ekspos & plafon tinggi di Trastevere"),
       hotelImg("trastevere-1.jpg", "Loft terbuka dengan ruang tamu luas"),
-      hotelImg("trastevere-2.jpg", "Ruang tidur dengan pencahayaan hangat"),
       hotelImg("trastevere-3.jpg", "Interior artistik & furnitur vintage"),
       hotelImg("trastevere-4.jpg", "Sudut kerja & dekorasi dinding"),
       hotelImg("trastevere-5.jpg", "Kamar mandi modern dengan shower"),

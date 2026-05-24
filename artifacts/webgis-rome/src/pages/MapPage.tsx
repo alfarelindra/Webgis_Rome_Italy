@@ -18,13 +18,15 @@ import MusicPlayer from "@/components/MusicPlayer";
 import WeatherWidget from "@/components/WeatherWidget";
 import HotelsPanel from "@/components/HotelsPanel";
 import AttractionsPanel from "@/components/AttractionsPanel";
+import RestaurantsPanel from "@/components/RestaurantsPanel";
 import type { HotelListing } from "@/lib/hotelListings";
 import type { AttractionListing } from "@/lib/attractionListings";
+import type { RestaurantListing } from "@/lib/restaurantListings";
 import romeGeoJsonRaw from "@assets/rome_filtered.geojson?raw";
 import {
   MapPin, ZoomIn, ZoomOut, Locate, Download,
   Maximize2, Minimize2, Home, Share2, Star, Sun, Moon, Satellite,
-  Flame, BarChart2, Target, Navigation, BedDouble, Landmark,
+  Flame, BarChart2, Target, Navigation, BedDouble, Landmark, UtensilsCrossed,
 } from "lucide-react";
 
 delete (L.Icon.Default.prototype as unknown as Record<string, unknown>)._getIconUrl;
@@ -187,6 +189,7 @@ export default function MapPage() {
   const nearbyCircleRef = useRef<L.Circle | null>(null);
   const nearbyCenterMarkerRef = useRef<L.Marker | null>(null);
   const routeLayerRef = useRef<L.Polyline | null>(null);
+  const routeGlowLayerRef = useRef<L.Polyline | null>(null);
   const routeFromMarkerRef = useRef<L.Marker | null>(null);
   const routeToMarkerRef = useRef<L.Marker | null>(null);
 
@@ -224,6 +227,8 @@ export default function MapPage() {
   const [hotelDetailId, setHotelDetailId] = useState<string | null>(null);
   const [showAttractions, setShowAttractions] = useState(false);
   const [attractionDetailId, setAttractionDetailId] = useState<string | null>(null);
+  const [showRestaurants, setShowRestaurants] = useState(false);
+  const [restaurantDetailId, setRestaurantDetailId] = useState<string | null>(null);
 
   // Init map
   useEffect(() => {
@@ -509,13 +514,23 @@ export default function MapPage() {
   const handleRouteResult = useCallback((result: RouteResult | null, from: RoutingPoint | null, to: RoutingPoint | null) => {
     const map = mapRef.current;
     if (!map) return;
-    // Clear old route layers
+    // Clear old route layers (main line + glow + markers)
     if (routeLayerRef.current) { map.removeLayer(routeLayerRef.current); routeLayerRef.current = null; }
+    if (routeGlowLayerRef.current) { map.removeLayer(routeGlowLayerRef.current); routeGlowLayerRef.current = null; }
     if (routeFromMarkerRef.current) { map.removeLayer(routeFromMarkerRef.current); routeFromMarkerRef.current = null; }
     if (routeToMarkerRef.current) { map.removeLayer(routeToMarkerRef.current); routeToMarkerRef.current = null; }
     if (!result || !from || !to) return;
 
-    // Draw route polyline
+    // Draw glow/outline effect first (so it renders below the main line)
+    routeGlowLayerRef.current = L.polyline(result.geometry, {
+      color: "rgba(91,143,168,0.25)",
+      weight: 10,
+      opacity: 1,
+      lineJoin: "round",
+      lineCap: "round",
+    }).addTo(map);
+
+    // Draw main route polyline on top
     routeLayerRef.current = L.polyline(result.geometry, {
       color: "#5b8fa8",
       weight: 5,
@@ -523,15 +538,6 @@ export default function MapPage() {
       lineJoin: "round",
       lineCap: "round",
       dashArray: undefined,
-    }).addTo(map);
-
-    // Animated border (outline effect)
-    L.polyline(result.geometry, {
-      color: "rgba(91,143,168,0.25)",
-      weight: 10,
-      opacity: 1,
-      lineJoin: "round",
-      lineCap: "round",
     }).addTo(map);
 
     // From marker (blue)
@@ -679,13 +685,30 @@ export default function MapPage() {
     setShowHotels(false);
   }, []);
 
+  const handleRestaurantSelectListing = useCallback((listing: RestaurantListing) => {
+    mapRef.current?.flyTo([listing.lat, listing.lng], 17, { animate: true, duration: 1.2 });
+    setShowRestaurants(false);
+    setRestaurantDetailId(null);
+  }, []);
+
+  const handleOpenRestaurantDetail = useCallback((listingId: string) => {
+    setRestaurantDetailId(listingId);
+    setShowRestaurants(true);
+    setShowStats(false);
+    setShowBookmarks(false);
+    setShowAttractions(false);
+    setShowHotels(false);
+  }, []);
+
   const closeSidePanels = useCallback(() => {
     setShowStats(false);
     setShowBookmarks(false);
     setShowHotels(false);
     setShowAttractions(false);
+    setShowRestaurants(false);
     setHotelDetailId(null);
     setAttractionDetailId(null);
+    setRestaurantDetailId(null);
   }, []);
 
   return (
@@ -753,28 +776,35 @@ export default function MapPage() {
           )}
 
           {/* Floating left panels — only one shown at a time */}
-          {showStats && !showHotels && !showAttractions && (
+          {showStats && !showHotels && !showAttractions && !showRestaurants && (
             <StatisticsPanel
               stats={statsData}
               total={visibleCount}
               onClose={() => setShowStats(false)}
             />
           )}
-          {showAttractions && !showStats && !showBookmarks && !showHotels && (
+          {showAttractions && !showStats && !showBookmarks && !showHotels && !showRestaurants && (
             <AttractionsPanel
               initialListingId={attractionDetailId}
               onClose={() => { setShowAttractions(false); setAttractionDetailId(null); }}
               onSelectListing={handleAttractionSelectListing}
             />
           )}
-          {showHotels && !showStats && !showBookmarks && !showAttractions && (
+          {showHotels && !showStats && !showBookmarks && !showAttractions && !showRestaurants && (
             <HotelsPanel
               initialListingId={hotelDetailId}
               onClose={() => { setShowHotels(false); setHotelDetailId(null); }}
               onSelectListing={handleHotelSelectListing}
             />
           )}
-          {showBookmarks && !showStats && !showHotels && !showAttractions && (
+          {showRestaurants && !showStats && !showBookmarks && !showAttractions && !showHotels && (
+            <RestaurantsPanel
+              initialListingId={restaurantDetailId}
+              onClose={() => { setShowRestaurants(false); setRestaurantDetailId(null); }}
+              onSelectListing={handleRestaurantSelectListing}
+            />
+          )}
+          {showBookmarks && !showStats && !showHotels && !showAttractions && !showRestaurants && (
             <BookmarkPanel
               bookmarks={bookmarks}
               onFlyTo={(lat, lng) => { mapRef.current?.flyTo([lat, lng], 17, { animate: true }); setShowBookmarks(false); }}
@@ -882,7 +912,13 @@ export default function MapPage() {
 
             {/* Routing toggle */}
             <button
-              onClick={() => setShowRouting((v) => !v)}
+              onClick={() => {
+                if (showRouting) {
+                  // Closing: also clear route from map
+                  handleRouteResult(null, null, null);
+                }
+                setShowRouting((v) => !v);
+              }}
               title="Navigasi rute A ke B"
               data-testid="button-routing"
               className="w-9 h-9 rounded-xl flex items-center justify-center transition-all"
@@ -944,7 +980,7 @@ export default function MapPage() {
               <span className="text-xs font-medium">Export</span>
             </button>
 
-            {/* Bookmarks */}
+            {/* Destinasi */}
             <button
               onClick={() => {
                 if (showAttractions) { setShowAttractions(false); setAttractionDetailId(null); }
@@ -963,6 +999,27 @@ export default function MapPage() {
             >
               <Landmark size={13} style={{ color: showAttractions ? "#9fdfb8" : "#4caf7d" }} />
               <span className="text-xs font-medium">Destinasi</span>
+            </button>
+
+            {/* Restauran */}
+            <button
+              onClick={() => {
+                if (showRestaurants) { setShowRestaurants(false); setRestaurantDetailId(null); }
+                else { closeSidePanels(); setShowRestaurants(true); }
+              }}
+              data-testid="button-restaurants"
+              title="Restauran ikonik Roma — hidangan khas"
+              className="flex items-center gap-1.5 px-3 py-2 rounded-xl transition-all"
+              style={{
+                background: showRestaurants ? "rgba(212,168,67,0.2)" : "rgba(20,16,12,0.85)",
+                backdropFilter: "blur(12px)",
+                border: `1px solid ${showRestaurants ? "rgba(212,168,67,0.45)" : "rgba(255,255,255,0.06)"}`,
+                boxShadow: "0 4px 16px rgba(0,0,0,0.5)",
+                color: showRestaurants ? "#d4a843" : "#c8bfb2",
+              }}
+            >
+              <UtensilsCrossed size={13} style={{ color: showRestaurants ? "#d4a843" : "#c0623a" }} />
+              <span className="text-xs font-medium">Restauran</span>
             </button>
 
             <button
