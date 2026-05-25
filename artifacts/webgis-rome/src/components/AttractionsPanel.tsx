@@ -13,6 +13,7 @@ import {
   Sun,
   Accessibility,
   Globe,
+  CreditCard,
 } from "lucide-react";
 import {
   ATTRACTION_LISTINGS,
@@ -22,6 +23,7 @@ import {
   type AttractionListing,
 } from "@/lib/attractionListings";
 import HotelImage from "@/components/HotelImage";
+import TicketPaymentPanel from "@/components/TicketPaymentPanel";
 
 interface AttractionsPanelProps {
   onClose: () => void;
@@ -54,6 +56,7 @@ export default function AttractionsPanel({ onClose, onSelectListing, initialList
   const [catFilter, setCatFilter] = useState<AttractionCategory | "all">("all");
   const [sort, setSort] = useState<SortKey>("rating");
   const [imageIndex, setImageIndex] = useState(0);
+  const [showPayment, setShowPayment] = useState(false);
   const thumbStripRef = useRef<HTMLDivElement>(null);
 
   const listings = useMemo(() => {
@@ -74,6 +77,16 @@ export default function AttractionsPanel({ onClose, onSelectListing, initialList
     const active = thumbStripRef.current.querySelector<HTMLElement>(`[data-thumb-index="${imageIndex}"]`);
     active?.scrollIntoView({ behavior: "smooth", inline: "center", block: "nearest" });
   }, [imageIndex, selected?.id]);
+
+  if (selected && showPayment) {
+    return (
+      <TicketPaymentPanel
+        listing={selected}
+        onClose={() => { setShowPayment(false); setSelected(null); }}
+        onBack={() => setShowPayment(false)}
+      />
+    );
+  }
 
   if (selected) {
     const imageCount = selected.images.length;
@@ -227,15 +240,31 @@ export default function AttractionsPanel({ onClose, onSelectListing, initialList
             </div>
           </div>
 
-          <div className="p-4 flex-shrink-0" style={{ borderTop: "1px solid rgba(255,255,255,0.08)", background: "rgba(0,0,0,0.25)" }}>
+          <div className="p-4 flex-shrink-0 flex flex-col gap-2" style={{ borderTop: "1px solid rgba(255,255,255,0.08)", background: "rgba(0,0,0,0.25)" }}>
+            {/* Tombol Beli Tiket */}
             <button
               type="button"
-              onClick={() => onSelectListing(selected)}
-              className="w-full py-3 rounded-xl text-sm font-semibold"
+              onClick={() => setShowPayment(true)}
+              className="w-full py-3 rounded-xl text-sm font-semibold flex items-center justify-center gap-2"
               style={{
                 background: "linear-gradient(135deg, #4caf7d, #2e7d52)",
                 color: "#f0fff4",
                 boxShadow: "0 4px 16px rgba(76,175,125,0.35)",
+              }}
+              data-testid="button-attraction-buy-ticket"
+            >
+              <CreditCard size={15} />
+              Beli Tiket
+            </button>
+            {/* Tombol Lihat di Peta */}
+            <button
+              type="button"
+              onClick={() => onSelectListing(selected)}
+              className="w-full py-2.5 rounded-xl text-sm font-medium"
+              style={{
+                background: "rgba(255,255,255,0.05)",
+                color: "#8a9a8a",
+                border: "1px solid rgba(255,255,255,0.08)",
               }}
               data-testid="button-attraction-show-map"
             >
@@ -248,7 +277,7 @@ export default function AttractionsPanel({ onClose, onSelectListing, initialList
   }
 
   return (
-    <div className="absolute left-4 top-4 bottom-4 z-[1000] w-[min(100%,22rem)] sm:w-80 flex flex-col slide-in-left" data-testid="attractions-panel">
+    <div className="absolute left-4 top-4 bottom-4 z-[1000] w-[min(100%,26rem)] sm:w-[28rem] flex flex-col slide-in-left" data-testid="attractions-panel">
       <div className="flex flex-col h-full rounded-xl overflow-hidden" style={panelShell}>
         <div className="p-4 flex items-center justify-between" style={{ borderBottom: "1px solid rgba(255,255,255,0.06)" }}>
           <div>
@@ -295,27 +324,82 @@ export default function AttractionsPanel({ onClose, onSelectListing, initialList
               key={listing.id}
               type="button"
               onClick={() => openDetail(listing)}
-              className="text-left rounded-xl overflow-hidden"
-              style={{ background: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.06)" }}
+              className="text-left rounded-xl overflow-hidden w-full"
+              style={{
+                background: "rgba(255,255,255,0.03)",
+                border: "1px solid rgba(255,255,255,0.08)",
+                transition: "border-color 0.2s, transform 0.15s",
+              }}
+              onMouseEnter={(e) => {
+                (e.currentTarget as HTMLButtonElement).style.borderColor = "rgba(76,175,125,0.45)";
+                (e.currentTarget as HTMLButtonElement).style.transform = "scale(1.01)";
+              }}
+              onMouseLeave={(e) => {
+                (e.currentTarget as HTMLButtonElement).style.borderColor = "rgba(255,255,255,0.08)";
+                (e.currentTarget as HTMLButtonElement).style.transform = "scale(1)";
+              }}
               data-testid={`attraction-card-${listing.id}`}
             >
-              <div className="relative h-32">
-                <HotelImage src={listing.images[0]?.url ?? ATTRACTION_IMAGE_FALLBACK} fallback={ATTRACTION_IMAGE_FALLBACK} alt={listing.title} className="w-full h-full object-cover" />
-                <span className="absolute bottom-2 right-2 text-[9px] px-1.5 py-0.5 rounded" style={{ background: "rgba(0,0,0,0.65)", color: "#e0d8cc" }}>
+              {/* ── Gambar atas ── */}
+              <div className="relative w-full" style={{ height: "140px" }}>
+                <HotelImage
+                  src={listing.images[0]?.url ?? ATTRACTION_IMAGE_FALLBACK}
+                  fallback={ATTRACTION_IMAGE_FALLBACK}
+                  alt={listing.title}
+                  className="w-full h-full object-cover"
+                />
+                {/* Badge kategori kiri atas */}
+                <span
+                  className="absolute top-2 left-2 text-[9px] font-semibold px-2 py-0.5 rounded-full"
+                  style={{ background: "rgba(76,175,125,0.9)", color: "#fff", backdropFilter: "blur(4px)" }}
+                >
+                  {ATTRACTION_CATEGORY_LABELS[listing.category]}
+                </span>
+                {/* Jumlah foto kanan atas */}
+                <span
+                  className="absolute top-2 right-2 text-[9px] px-1.5 py-0.5 rounded"
+                  style={{ background: "rgba(0,0,0,0.6)", color: "#ccc" }}
+                >
                   {listing.images.length} foto
                 </span>
               </div>
-              <div className="p-3">
-                <div className="flex justify-between gap-2 mb-1">
-                  <h3 className="text-[13px] font-medium leading-tight" style={{ color: "#e0d8cc" }}>{listing.title}</h3>
-                  <span className="flex items-center gap-0.5 text-[11px] flex-shrink-0">
-                    <Star size={10} fill="#d4a843" style={{ color: "#d4a843" }} />
-                    {listing.rating.toFixed(2)}
-                  </span>
+
+              {/* ── Strip nama & info di bawah gambar ── */}
+              <div
+                className="px-3 py-2.5"
+                style={{ background: "rgba(20,16,12,0.98)", borderTop: "1px solid rgba(76,175,125,0.15)" }}
+              >
+                {/* Nama Tempat */}
+                <h3
+                  className="text-[13px] font-semibold leading-tight"
+                  style={{ color: "#f0ece4" }}
+                >
+                  {listing.title}
+                </h3>
+
+                {/* Lokasi + Rating */}
+                <div className="flex items-center justify-between mt-1.5 gap-2">
+                  <div className="flex items-center gap-1 min-w-0">
+                    <MapPin size={9} style={{ color: "#4caf7d", flexShrink: 0 }} />
+                    <span
+                      className="text-[10px] truncate"
+                      style={{ color: "#8aaa90" }}
+                    >
+                      {listing.neighborhood}
+                    </span>
+                  </div>
+                  <div className="flex items-center gap-1 flex-shrink-0">
+                    <Star size={9} fill="#d4a843" style={{ color: "#d4a843" }} />
+                    <span className="text-[11px] font-bold" style={{ color: "#e8c86a" }}>
+                      {listing.rating.toFixed(1)}
+                    </span>
+                  </div>
                 </div>
-                <p className="text-[10px] mb-1" style={{ color: "#6b5e52" }}>{listing.neighborhood}</p>
-                <p className="text-[10px] line-clamp-2" style={{ color: "#8a7060" }}>{listing.description}</p>
-                <p className="text-[10px] mt-1.5" style={{ color: "#4caf7d" }}>{listing.entryFee} · {listing.duration}</p>
+
+                {/* Harga & Durasi */}
+                <p className="text-[10px] mt-1" style={{ color: "#4caf7d" }}>
+                  {listing.entryFee} · {listing.duration}
+                </p>
               </div>
             </button>
           ))}

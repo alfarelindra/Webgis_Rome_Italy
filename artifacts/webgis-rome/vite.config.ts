@@ -33,6 +33,14 @@ export default defineConfig({
     fs: {
       strict: false,
     },
+    proxy: {
+      "/supabase": {
+        target: "https://yodebssxstvjjsfcclyb.supabase.co",
+        changeOrigin: true,
+        rewrite: (path) => path.replace(/^\/supabase/, ""),
+        secure: true,
+      },
+    },
   },
   preview: {
     port,

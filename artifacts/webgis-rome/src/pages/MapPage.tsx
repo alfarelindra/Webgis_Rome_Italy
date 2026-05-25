@@ -19,6 +19,9 @@ import WeatherWidget from "@/components/WeatherWidget";
 import HotelsPanel from "@/components/HotelsPanel";
 import AttractionsPanel from "@/components/AttractionsPanel";
 import RestaurantsPanel from "@/components/RestaurantsPanel";
+import AccountPanel from "@/components/AccountPanel";
+import LoginModal from "@/components/LoginModal";
+import { useAuth } from "@/context/AuthContext";
 import type { HotelListing } from "@/lib/hotelListings";
 import type { AttractionListing } from "@/lib/attractionListings";
 import type { RestaurantListing } from "@/lib/restaurantListings";
@@ -26,7 +29,7 @@ import romeGeoJsonRaw from "@assets/rome_filtered.geojson?raw";
 import {
   MapPin, ZoomIn, ZoomOut, Locate, Download,
   Maximize2, Minimize2, Home, Share2, Star, Sun, Moon, Satellite,
-  Flame, BarChart2, Target, Navigation, BedDouble, Landmark, UtensilsCrossed,
+  Flame, BarChart2, Target, Navigation, BedDouble, Landmark, UtensilsCrossed, UserCircle, MessageSquare,
 } from "lucide-react";
 
 delete (L.Icon.Default.prototype as unknown as Record<string, unknown>)._getIconUrl;
@@ -229,6 +232,10 @@ export default function MapPage() {
   const [attractionDetailId, setAttractionDetailId] = useState<string | null>(null);
   const [showRestaurants, setShowRestaurants] = useState(false);
   const [restaurantDetailId, setRestaurantDetailId] = useState<string | null>(null);
+  const [showAccount, setShowAccount] = useState(false);
+  const [showAuthModal, setShowAuthModal] = useState(false);
+  const [showChat, setShowChat] = useState(false);
+  const { user, orders } = useAuth();
 
   // Init map
   useEffect(() => {
@@ -706,6 +713,7 @@ export default function MapPage() {
     setShowHotels(false);
     setShowAttractions(false);
     setShowRestaurants(false);
+    setShowAccount(false);
     setHotelDetailId(null);
     setAttractionDetailId(null);
     setRestaurantDetailId(null);
@@ -758,6 +766,58 @@ export default function MapPage() {
                 <span className="hidden sm:inline">{label}</span>
               </button>
             ))}
+          </div>
+
+          {/* ── Dedicated Login / Akun button — di atas LayerControl (kiri bawah) ── */}
+          <div className="absolute bottom-36 left-4 z-[1000]">
+            {user ? (
+              <button
+                onClick={() => { if (showAccount) setShowAccount(false); else { closeSidePanels(); setShowAccount(true); } }}
+                data-testid="button-account-top"
+                className="flex items-center gap-2 pl-1.5 pr-3 py-1.5 rounded-xl transition-all relative"
+                style={{
+                  background: showAccount ? "rgba(212,168,67,0.2)" : "rgba(20,16,12,0.9)",
+                  backdropFilter: "blur(14px)",
+                  border: showAccount ? "1px solid rgba(212,168,67,0.45)" : "1px solid rgba(192,98,58,0.25)",
+                  boxShadow: showAccount ? "0 4px 16px rgba(212,168,67,0.2)" : "0 4px 12px rgba(0,0,0,0.5)",
+                }}
+              >
+                <div className="w-6 h-6 rounded-full flex items-center justify-center text-[10px] font-black"
+                  style={{ background: "linear-gradient(135deg,#c0623a,#d4a843)", color: "#1a1208" }}>
+                  {user.name.charAt(0)}
+                </div>
+                <div className="text-left">
+                  <p className="text-[11px] font-semibold leading-none" style={{ color: "#e0d8cc" }}>{user.name.split(" ")[0]}</p>
+                  <p className="text-[9px] leading-none mt-0.5" style={{ color: "#6b5e52" }}>Lihat akun</p>
+                </div>
+                {orders.length > 0 && (
+                  <span className="absolute -top-1 -right-1 w-4 h-4 rounded-full text-[8px] font-bold flex items-center justify-center"
+                    style={{ background: "#c0623a", color: "#fff" }}>
+                    {orders.length}
+                  </span>
+                )}
+              </button>
+            ) : (
+              <button
+                onClick={() => setShowAuthModal(true)}
+                data-testid="button-login-top"
+                className="flex items-center gap-2 px-3 py-2 rounded-xl transition-all"
+                style={{
+                  background: "linear-gradient(135deg, rgba(192,98,58,0.3), rgba(212,168,67,0.2))",
+                  backdropFilter: "blur(14px)",
+                  border: "1px solid rgba(212,168,67,0.4)",
+                  boxShadow: "0 4px 16px rgba(192,98,58,0.25), 0 0 0 1px rgba(212,168,67,0.1)",
+                  color: "#e8c87a",
+                  animation: "pulse-glow 2.5s ease-in-out infinite",
+                }}
+              >
+                <UserCircle size={15} style={{ color: "#d4a843" }} />
+                <div className="text-left">
+                  <p className="text-[11px] font-bold leading-none" style={{ color: "#d4a843" }}>Login / Daftar</p>
+                  <p className="text-[9px] leading-none mt-0.5" style={{ color: "#8a6e40" }}>Simpan riwayat perjalanan</p>
+                </div>
+              </button>
+            )}
           </div>
 
           <LayerControl layers={layers} onToggle={handleLayerToggle} subLayers={subLayers} onSubToggle={handleSubToggle} />
@@ -813,6 +873,18 @@ export default function MapPage() {
             />
           )}
 
+          {/* Account panel */}
+          {showAccount && user && (
+            <AccountPanel onClose={() => setShowAccount(false)} />
+          )}
+          {showAuthModal && (
+            <LoginModal
+              reason="Masuk untuk melihat riwayat pembelian dan pesanan Anda"
+              onClose={() => setShowAuthModal(false)}
+              onSuccess={() => { setShowAuthModal(false); setShowAccount(true); }}
+            />
+          )}
+
           {/* NearbyPanel — shown when nearby mode is active */}
           {nearbyMode && (
             <NearbyPanel
@@ -855,8 +927,6 @@ export default function MapPage() {
               <span className="text-xs">Klik titik mana saja di peta untuk mencari lokasi terdekat</span>
             </div>
           )}
-
-          <ChatPanel />
           <MusicPlayer />
           <WeatherWidget locationOpen={!!selectedFeature} />
 
@@ -1061,6 +1131,72 @@ export default function MapPage() {
               <span className="text-xs font-medium">{bookmarks.length > 0 ? bookmarks.length : "Favorit"}</span>
             </button>
 
+            {/* Chatbot */}
+            <button
+              onClick={() => {
+                if (showChat) setShowChat(false);
+                else { closeSidePanels(); setShowChat(true); }
+              }}
+              data-testid="button-chat"
+              title="Asisten AI — tanya tentang Roma"
+              className="flex items-center gap-1.5 px-3 py-2 rounded-xl transition-all"
+              style={{
+                background: showChat ? "rgba(100,149,237,0.2)" : "rgba(20,16,12,0.85)",
+                backdropFilter: "blur(12px)",
+                border: `1px solid ${showChat ? "rgba(100,149,237,0.45)" : "rgba(255,255,255,0.06)"}`,
+                boxShadow: "0 4px 16px rgba(0,0,0,0.5)",
+                color: showChat ? "#9bb8f0" : "#c8bfb2",
+              }}>
+              <MessageSquare size={13} style={{ color: showChat ? "#9bb8f0" : "#6495ed" }} />
+              <span className="text-xs font-medium">Chatbot</span>
+            </button>
+
+            <button
+              onClick={() => {
+                if (user) {
+                  if (showAccount) setShowAccount(false);
+                  else { closeSidePanels(); setShowAccount(true); }
+                } else {
+                  setShowAuthModal(true);
+                }
+              }}
+              data-testid="button-account"
+              title={user ? `Akun: ${user.name}` : "Login / Daftar"}
+              className="flex items-center gap-1.5 px-3 py-2 rounded-xl transition-all relative"
+              style={{
+                background: user
+                  ? (showAccount ? "rgba(212,168,67,0.18)" : "rgba(20,16,12,0.85)")
+                  : "linear-gradient(135deg,rgba(192,98,58,0.25),rgba(212,168,67,0.15))",
+                backdropFilter: "blur(12px)",
+                border: user
+                  ? `1px solid ${showAccount ? "rgba(212,168,67,0.4)" : "rgba(255,255,255,0.06)"}`
+                  : "1px solid rgba(212,168,67,0.35)",
+                boxShadow: user ? "0 4px 16px rgba(0,0,0,0.5)" : "0 4px 16px rgba(192,98,58,0.2)",
+                color: user ? (showAccount ? "#d4a843" : "#c8bfb2") : "#d4a843",
+              }}
+            >
+              {user ? (
+                <>
+                  <div className="w-5 h-5 rounded-full flex items-center justify-center text-[9px] font-bold"
+                    style={{ background: "linear-gradient(135deg,#c0623a,#d4a843)", color: "#1a1208", flexShrink: 0 }}>
+                    {user.name.charAt(0)}
+                  </div>
+                  <span className="text-xs font-medium">{user.name.split(" ")[0]}</span>
+                  {orders.length > 0 && (
+                    <span className="absolute -top-1 -right-1 w-4 h-4 rounded-full text-[8px] font-bold flex items-center justify-center"
+                      style={{ background: "#c0623a", color: "#fff" }}>
+                      {orders.length}
+                    </span>
+                  )}
+                </>
+              ) : (
+                <>
+                  <UserCircle size={13} style={{ color: "#d4a843" }} />
+                  <span className="text-xs font-medium">Login</span>
+                </>
+              )}
+            </button>
+
             {/* Statistics */}
             <button
               onClick={() => {
@@ -1096,6 +1232,11 @@ export default function MapPage() {
             >
               ✓ Link berhasil disalin ke clipboard
             </div>
+          )}
+
+          {/* ChatPanel */}
+          {showChat && (
+            <ChatPanel onClose={() => setShowChat(false)} />
           )}
         </>
       )}

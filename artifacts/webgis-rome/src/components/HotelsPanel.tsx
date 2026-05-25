@@ -19,6 +19,7 @@ import {
   Footprints,
   Home,
   Ban,
+  CreditCard,
 } from "lucide-react";
 import {
   HOTEL_LISTINGS,
@@ -28,6 +29,7 @@ import {
   type StayType,
 } from "@/lib/hotelListings";
 import HotelImage from "@/components/HotelImage";
+import HotelBookingPanel from "@/components/HotelBookingPanel";
 
 interface HotelsPanelProps {
   onClose: () => void;
@@ -62,6 +64,7 @@ export default function HotelsPanel({ onClose, onSelectListing, initialListingId
   const [imageIndex, setImageIndex] = useState(0);
   const [saved, setSaved] = useState<Set<string>>(new Set());
   const [nights, setNights] = useState(2);
+  const [showBooking, setShowBooking] = useState(false);
   const thumbStripRef = useRef<HTMLDivElement>(null);
 
   const listings = useMemo(() => {
@@ -93,6 +96,16 @@ export default function HotelsPanel({ onClose, onSelectListing, initialListingId
     const active = thumbStripRef.current.querySelector<HTMLElement>(`[data-thumb-index="${imageIndex}"]`);
     active?.scrollIntoView({ behavior: "smooth", inline: "center", block: "nearest" });
   }, [imageIndex, selected?.id]);
+
+  if (selected && showBooking) {
+    return (
+      <HotelBookingPanel
+        listing={selected}
+        onClose={() => { setShowBooking(false); setSelected(null); }}
+        onBack={() => setShowBooking(false)}
+      />
+    );
+  }
 
   if (selected) {
     const total = estimateTotal(selected, nights);
@@ -432,7 +445,7 @@ export default function HotelsPanel({ onClose, onSelectListing, initialListingId
           </div>
 
           {/* Footer booking */}
-          <div className="p-4 flex-shrink-0" style={{ borderTop: "1px solid rgba(255,255,255,0.08)", background: "rgba(0,0,0,0.25)" }}>
+          <div className="p-4 flex-shrink-0 flex flex-col gap-2" style={{ borderTop: "1px solid rgba(255,255,255,0.08)", background: "rgba(0,0,0,0.25)" }}>
             <div className="flex items-center justify-between mb-2">
               <div>
                 <div className="flex items-baseline gap-1">
@@ -468,23 +481,39 @@ export default function HotelsPanel({ onClose, onSelectListing, initialListingId
                 <span>€{selected.serviceFee}</span>
               </div>
             </div>
-            <p className="text-[12px] mb-3 text-right font-semibold" style={{ color: "#d4a843" }}>
-              Total: €{total}
+            <p className="text-[12px] mb-2 text-right font-semibold" style={{ color: "#d4a843" }}>
+              Total: €{estimateTotal(selected, nights)}
             </p>
+            {/* Tombol Pesan Sekarang */}
             <button
               type="button"
-              onClick={() => onSelectListing(selected)}
-              className="w-full py-3 rounded-xl text-sm font-semibold transition-all hover:opacity-90"
+              onClick={() => setShowBooking(true)}
+              className="w-full py-3 rounded-xl text-sm font-semibold flex items-center justify-center gap-2 transition-all hover:opacity-90"
               style={{
                 background: "linear-gradient(135deg, #c0623a, #d4a843)",
                 color: "#1a1208",
                 boxShadow: "0 4px 16px rgba(192,98,58,0.4)",
               }}
+              data-testid="button-hotel-book"
+            >
+              <CreditCard size={15} />
+              Pesan Sekarang
+            </button>
+            {/* Tombol Lihat di Peta */}
+            <button
+              type="button"
+              onClick={() => onSelectListing(selected)}
+              className="w-full py-2.5 rounded-xl text-sm font-medium transition-all hover:opacity-90"
+              style={{
+                background: "rgba(255,255,255,0.05)",
+                color: "#8a9070",
+                border: "1px solid rgba(255,255,255,0.08)",
+              }}
               data-testid="button-hotel-show-map"
             >
               Lihat di peta
             </button>
-            <p className="text-[9px] text-center mt-2" style={{ color: "#4a3e36" }}>
+            <p className="text-[9px] text-center" style={{ color: "#4a3e36" }}>
               Harga ilustratif · bukan reservasi nyata
             </p>
           </div>
